@@ -209,6 +209,7 @@ class FomoEstimator(BaseEstimator):
                 self.algorithm_,
                 seed=self.random_state,
                 verbose=self.verbose,
+                save_history=True,
                 **kwargs
             )
 

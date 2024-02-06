@@ -136,7 +136,7 @@ def get_parent_WeightedCoinFlip(pop):
     gp_lens = pop.get('gp_lens')
     G = np.arange(fng.shape[1])
     S = np.arange(len(pop))
-    loss = []
+    epsilon =0.001
     weight = random.random()
 
     while (len(G) > 0 and len(S) > 1):
@@ -162,7 +162,7 @@ def get_parent_WeightedCoinFlip(pop):
 
 
         L = min(loss) 
-        epsilon = np.median(np.abs(loss - np.median(loss)))
+        #epsilon = np.median(np.abs(loss - np.median(loss)))
         survivors = np.where(loss <= L + epsilon)
         S = S[survivors]
         fng = fng[survivors] 
@@ -195,7 +195,7 @@ class FLEX(Selection):
         
         for i in range(n_select * n_parents): 
             #get pop_size parents
-            p = get_parent(pop)
+            p = get_parent_WeightedCoinFlip(pop)
             parents.append(p)
             
         return np.reshape(parents, (n_select, n_parents))
