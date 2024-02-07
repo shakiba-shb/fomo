@@ -160,7 +160,7 @@ def get_parent_WeightedCoinFlip(pop):
                 else:
                     loss.append(0)
 
-
+        loss = np.array(loss)
         L = min(loss) 
         #epsilon = np.median(np.abs(loss - np.median(loss)))
         survivors = np.where(loss <= L + epsilon)
@@ -172,6 +172,14 @@ def get_parent_WeightedCoinFlip(pop):
             
     S = S[:, None].astype(int, copy=False)     
     return random.choice(S)
+
+def get_parent_random(pop):
+    
+    if not hasattr(get_parent_random, "_called"):
+        print("Random parent selection")
+        get_parent_random._called = True
+    
+    return random.choice(pop)
 
 class FLEX(Selection):
     
@@ -195,7 +203,7 @@ class FLEX(Selection):
         
         for i in range(n_select * n_parents): 
             #get pop_size parents
-            p = get_parent_WeightedCoinFlip(pop)
+            p = get_parent_random(pop)
             parents.append(p)
             
         return np.reshape(parents, (n_select, n_parents))
