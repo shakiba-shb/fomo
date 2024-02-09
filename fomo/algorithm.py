@@ -50,6 +50,7 @@ from pymoo.util.misc import has_feasible
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.algorithms.base.genetic import GeneticAlgorithm
+from pymoo.operators.selection.rnd import RandomSelection
 
 def get_parent(pop):
 
@@ -183,24 +184,13 @@ def get_parent_random(pop):
 
 class FLEX(Selection):
     
-    def __init__(self,
-                 **kwargs):
-
-        #self.X_protected_ = X_protected
-        #self.categories = categories
-        #self.group_losses = group_losses
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
      
          
     def _do(self, _, pop, n_select, n_parents=1, flag = 0, **kwargs):
-
-        # offss = super().n_offsprings
-        # s = n_select * n_parents
-        # S = np.random.randint(0, s, s)
-        # S = S[:, None].astype(int, copy=False)
         
         parents = []
-        
         for i in range(n_select * n_parents): 
             #get pop_size parents
             p = get_parent_random(pop)
