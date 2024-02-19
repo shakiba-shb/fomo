@@ -189,13 +189,22 @@ class FLEX(Selection):
      
          
     def _do(self, _, pop, n_select, n_parents=1, flag = 0, **kwargs):
-        
+        for i in pop:
+            i.set('id', id(i))
         parents = []
         for i in range(n_select * n_parents): 
             #get pop_size parents
-            p = get_parent_random(pop)
+            p = get_parent(pop)
             parents.append(p)
-            
+
+        selected = {}
+        population = {'X': pop.get('X').tolist(), 'F': pop.get('F').tolist(), 'id':pop.get('id').tolist(), 'fng': pop.get('fng').tolist()}
+        selected_parents = {'X': pop[parents].flatten().get('X').tolist(), 'F': pop[parents].flatten().get('F').tolist(), 'id':pop[parents].flatten().get('id').tolist(), 'fng': pop[parents].flatten().get('fng').tolist()}
+        selected['pop']= population
+        selected['parents']= selected_parents
+        import json
+        with open(f"fomo_lex_lr_fnr_linear_101_generation_{kwargs['algorithm'].n_iter}.json", 'w') as f:
+            json.dump(selected, f, indent=2)
         return np.reshape(parents, (n_select, n_parents))
 
 class LexSurvival(Survival):
