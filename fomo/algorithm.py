@@ -63,6 +63,7 @@ def get_parent(pop):
     G = np.arange(fng.shape[1])
     S = np.arange(len(pop))
     loss = []
+    epsilon = 0.001
 
     while (len(G) > 0 and len(S) > 1):
 
@@ -77,7 +78,7 @@ def get_parent(pop):
             loss = np.abs(fng[:, g] - fn)
 
         L = min(loss) 
-        epsilon = np.median(np.abs(loss - np.median(loss)))
+        #epsilon = np.median(np.abs(loss - np.median(loss)))
         survivors = np.where(loss <= L + epsilon)
         S = S[survivors]
         fng = fng[survivors] 
@@ -182,6 +183,45 @@ def get_parent_random(pop):
     
     return random.choice(pop)
 
+def get_parent_add_test_case(pop):
+
+    if not hasattr(get_parent_add_test_case, "_called"):
+        print("Default flex with added test case for accuracy")
+        get_parent_add_test_case._called = True
+    
+    fng = pop.get("fng")
+    fn = pop.get("fn")
+    G = np.arange(fng.shape[1]+1)
+    S = np.arange(len(pop))
+    loss = []
+    #epsilon = 0.001
+
+    while (len(G) > 0 and len(S) > 1):
+
+        g = random.choice(G)
+        loss = []
+        if g == max(G):
+            #test case for looking at accuracy
+            loss = fn
+        
+        else:
+            #do default flex 
+            if (random.random() < 0.5):
+                loss = fng[:, g]
+            else:
+                loss = np.abs(fng[:, g] - fn)
+
+        L = min(loss) 
+        epsilon = np.median(np.abs(loss - np.median(loss)))
+        survivors = np.where(loss <= L + epsilon)
+        S = S[survivors]
+        fng = fng[survivors] 
+        fn = fn[survivors]
+        G = G[np.where(G != g)]
+            
+    S = S[:, None].astype(int, copy=False)     
+    return random.choice(S)
+
 class FLEX(Selection):
     
     def __init__(self, **kwargs):
@@ -194,17 +234,18 @@ class FLEX(Selection):
         parents = []
         for i in range(n_select * n_parents): 
             #get pop_size parents
-            p = get_parent(pop)
+            p = get_parent_add_test_case(pop)
             parents.append(p)
 
-        selected = {}
-        population = {'X': pop.get('X').tolist(), 'F': pop.get('F').tolist(), 'id':pop.get('id').tolist(), 'fng': pop.get('fng').tolist()}
-        selected_parents = {'X': pop[parents].flatten().get('X').tolist(), 'F': pop[parents].flatten().get('F').tolist(), 'id':pop[parents].flatten().get('id').tolist(), 'fng': pop[parents].flatten().get('fng').tolist()}
-        selected['pop']= population
-        selected['parents']= selected_parents
-        import json
-        with open(f"fomo_lex_lr_fnr_linear_101_generation_{kwargs['algorithm'].n_iter}.json", 'w') as f:
-            json.dump(selected, f, indent=2)
+        # selected = {}
+        # population = {'X': pop.get('X').tolist(), 'F': pop.get('F').tolist(), 'id':pop.get('id').tolist(), 'fng': pop.get('fng').tolist()}
+        # selected_parents = {'X': pop[parents].flatten().get('X').tolist(), 'F': pop[parents].flatten().get('F').tolist(), 'id':pop[parents].flatten().get('id').tolist(), 'fng': pop[parents].flatten().get('fng').tolist()}
+        # selected['pop']= population
+        # selected['parents']= selected_parents
+        # import json
+        # with open(f"/home/shakiba/flex/results/Run_15/synthetic0/populations/fomo_lex_lr_fnr_101_generation_{kwargs['algorithm'].n_iter}.json", 'w') as f:
+        #     json.dump(selected, f, indent=2)
+
         return np.reshape(parents, (n_select, n_parents))
 
 class LexSurvival(Survival):
