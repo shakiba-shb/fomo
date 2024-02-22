@@ -54,9 +54,9 @@ from pymoo.operators.selection.rnd import RandomSelection
 
 def get_parent(pop):
 
-    if not hasattr(get_parent_WeightedCoinFlip, "_called"):
+    if not hasattr(get_parent, "_called"):
         print("Default flex")
-        get_parent_WeightedCoinFlip._called = True
+        get_parent._called = True
     
     fng = pop.get("fng")
     fn = pop.get("fn")
@@ -90,9 +90,9 @@ def get_parent(pop):
                 
 def get_parent_noCoinFlip(pop):
 
-    if not hasattr(get_parent_WeightedCoinFlip, "_called"):
+    if not hasattr(get_parent_noCoinFlip, "_called"):
         print("Flex with no coin flip")
-        get_parent_WeightedCoinFlip._called = True
+        get_parent_noCoinFlip._called = True
 
     fng = pop.get("fng")
     fng = np.tile(fng, 2)
@@ -243,7 +243,7 @@ class FLEX(Selection):
         # selected['pop']= population
         # selected['parents']= selected_parents
         # import json
-        # with open(f"/home/shakiba/flex/results/Run_15/synthetic0/populations/fomo_lex_lr_fnr_101_generation_{kwargs['algorithm'].n_iter}.json", 'w') as f:
+        # with open(f"/home/shakiba/flex/results/Run_15/synthetic0_no_evolution/populations/fomo_lex_lr_fnr_101_generation_{kwargs['algorithm'].n_iter}.json", 'w') as f:
         #     json.dump(selected, f, indent=2)
 
         return np.reshape(parents, (n_select, n_parents))
