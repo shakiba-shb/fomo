@@ -37,7 +37,7 @@ import pandas as pd
 import logging
 import itertools as it
 from fomo.utils import categorize 
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, balanced_accuracy_score
 
 logger = logging.getLogger(__name__)
 
@@ -386,7 +386,15 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     """
     
     groups = kwargs['groups']
-    X_protected = X[groups]
+    X_protected = kwargs['X_protected']
+
+    # assert groups is not None, "groups must be defined."
+    if groups is None:
+        assert X_protected is not None, "cannot define both groups and X_protected"
+    else:
+        assert X_protected is None, "cannot define both groups and X_protected"
+        X_protected = X[groups]
+    
     categories = {}
     fng = []
     samples_fnr = []
@@ -430,8 +438,13 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
         fnr = loss_fn(y_true[idx], y_pred[idx])
         samples_fnr.append(fnr)
 
+    # Calculate FNR/FPR of all samples
     fn = loss_fn(y_true, y_pred)    
-    return fn, fng, samples_fnr, gp_lens
+
+    # Calculate balanced_accuracy
+    balanced_accuracy = balanced_accuracy_score(y_true, y_pred > 0.5)
+
+    return fn, fng, samples_fnr, gp_lens, balanced_accuracy
 
 
 def mce(estimator, X, y_true, num_bins=10):

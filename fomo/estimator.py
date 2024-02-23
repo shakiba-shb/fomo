@@ -38,7 +38,7 @@ import pandas as pd
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn.utils.multiclass import unique_labels
-from sklearn.metrics import make_scorer, roc_auc_score, r2_score, mean_squared_error
+from sklearn.metrics import make_scorer, roc_auc_score, r2_score, mean_squared_error, balanced_accuracy_score
 from sklearn.linear_model import LogisticRegression, SGDRegressor
 from sklearn.base import clone
 from sklearn.pipeline import Pipeline
@@ -524,7 +524,7 @@ class FomoClassifier(FomoEstimator, ClassifierMixin, BaseEstimator):
         self.accuracy_metrics_ = self.accuracy_metrics
         self.fairness_metrics_ = self.fairness_metrics
         if self.accuracy_metrics is None:
-            self.accuracy_metrics_ = [make_scorer(roc_auc_score, greater_is_better=False, needs_proba=True)]
+            self.accuracy_metrics_ = [make_scorer(balanced_accuracy_score)]
         if self.fairness_metrics is None:
             self.fairness_metrics_ = [metrics.multicalibration_loss]
 
