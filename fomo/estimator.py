@@ -524,7 +524,7 @@ class FomoClassifier(FomoEstimator, ClassifierMixin, BaseEstimator):
         self.accuracy_metrics_ = self.accuracy_metrics
         self.fairness_metrics_ = self.fairness_metrics
         if self.accuracy_metrics is None:
-            self.accuracy_metrics_ = [make_scorer(balanced_accuracy_score)]
+            self.accuracy_metrics_ = [make_scorer(balanced_accuracy_score, greater_is_better=False)]
         if self.fairness_metrics is None:
             self.fairness_metrics_ = [metrics.multicalibration_loss]
 
