@@ -340,8 +340,7 @@ class FomoEstimator(BaseEstimator):
         """
         check_is_fitted(self, 'is_fitted_')
         I = self.I_
-        #F = self._get_signed_F()
-        F = self.res_.F
+        F = self._get_signed_F()
         axis_labels = self._get_objective_names()
         plot = (
             Scatter()

@@ -191,7 +191,8 @@ def get_parent_add_test_case(pop):
     
     fng = pop.get("fng")
     fn = pop.get("fn")
-    balanced_accuracy = pop.get("balanced_accuracy")
+    overall_acc = pop.get("overall_acc")
+    group_acc = pop.get("group_acc")
     G = np.arange(fng.shape[1]+1)
     S = np.arange(len(pop))
     #epsilon = 0.001
@@ -201,15 +202,15 @@ def get_parent_add_test_case(pop):
         g = random.choice(G)
         loss = []
         if g == max(G):
-            #test case for looking at accuracy
-            loss = balanced_accuracy
+            #test case for looking at overall accuracy
+            loss = overall_acc
         
         else:
             #do default flex 
             if (random.random() < 0.5):
-                loss = fng[:, g]
+                loss = group_acc[:, g] # accuarcy of the group
             else:
-                loss = np.abs(fng[:, g] - fn)
+                loss = np.abs(fng[:, g] - fn) # fairness
 
         L = min(loss) 
         epsilon = np.median(np.abs(loss - np.median(loss)))
@@ -217,7 +218,8 @@ def get_parent_add_test_case(pop):
         S = S[survivors]
         fng = fng[survivors] 
         fn = fn[survivors]
-        balanced_accuracy = balanced_accuracy[survivors]
+        overall_acc = overall_acc[survivors]
+        group_acc = group_acc[survivors]
         G = G[np.where(G != g)]
             
     S = S[:, None].astype(int, copy=False)     

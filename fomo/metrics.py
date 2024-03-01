@@ -399,7 +399,8 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     fng = []
     samples_fnr = []
     gp_lens = []
-    
+    group_acc = []
+
     y_pred = estimator.predict_proba(X)[:,1]
     y_pred = pd.Series(y_pred, index=X_protected.index)
 
@@ -427,6 +428,7 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
         )
         fng.append(category_loss)
         gp_lens.append(len(y_true.loc[idx].values))
+        group_acc.append(balanced_accuracy_score(y_true.loc[idx], y_pred.loc[idx] > 0.5))
 
     # print('#marginal groups: ', len(categories))
     # singles = 0
@@ -441,10 +443,9 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     # Calculate FNR/FPR of all samples
     fn = loss_fn(y_true, y_pred)    
 
-    # Calculate balanced_accuracy
-    balanced_accuracy = balanced_accuracy_score(y_true, y_pred > 0.5)
-
-    return fn, fng, samples_fnr, gp_lens, balanced_accuracy
+    # Calculate overall balanced_accuracy
+    overall_acc = balanced_accuracy_score(y_true, y_pred > 0.5)
+    return fn, fng, samples_fnr, gp_lens, overall_acc, group_acc
 
 
 def mce(estimator, X, y_true, num_bins=10):
