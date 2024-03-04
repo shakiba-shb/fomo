@@ -38,6 +38,7 @@ import logging
 import itertools as it
 from fomo.utils import categorize 
 from sklearn.metrics import mean_squared_error, balanced_accuracy_score
+warnings.filterwarnings("ignore", category=UserWarning)
 
 logger = logging.getLogger(__name__)
 
@@ -428,7 +429,7 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
         )
         fng.append(category_loss)
         gp_lens.append(len(y_true.loc[idx].values))
-        group_acc.append(balanced_accuracy_score(y_true.loc[idx], y_pred.loc[idx] > 0.5))
+        group_acc.append(balanced_accuracy_score(y_true.loc[idx], np.where(y_pred.loc[idx] > 0.5, 1, 0)))
 
     # print('#marginal groups: ', len(categories))
     # singles = 0
