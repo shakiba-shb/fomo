@@ -210,7 +210,7 @@ def get_parent_add_test_case(pop):
             if (random.random() < 0.5):
                 loss = group_acc[:, g] # accuarcy of the group
             else:
-                loss = np.abs(fng[:, g] - fn) # fairness
+                loss = np.abs(group_acc[:, g] - overall_acc) # fairness
 
         L = min(loss) 
         epsilon = np.median(np.abs(loss - np.median(loss)))
