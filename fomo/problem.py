@@ -85,17 +85,6 @@ class BasicProblem(ElementwiseProblem):
             else:
                 est.fit(X,y,sample_weight=sample_weight)
 
-        f = np.empty(self.n_obj)
-        j = 0
-        for i, metric in enumerate(self.fomo_estimator.accuracy_metrics_):
-            f[i] = metric(est, X, y)
-            j += 1
-        for metric in self.fomo_estimator.fairness_metrics_:
-            f[j] = metric(est, X, y, **self.metric_kwargs)
-            j += 1
-            
-        out['F'] = np.asarray(f)
-
         #if isinstance(self.fomo_estimator.algorithm, (Lexicase, Lexicase_NSGA2)):
         fn, fng, samples_fnr, gp_lens, overall_acc, group_acc = metrics.flex_loss(est, X, y, 'FNR', **self.metric_kwargs)
         out['fn'] = fn #FNR of all samples to be used in Flex
@@ -105,6 +94,18 @@ class BasicProblem(ElementwiseProblem):
         out['overall_acc'] = overall_acc #balanced_accuracy of all samples
         out['group_acc'] = group_acc #balanced_accuracy of each group
 
+        f = np.empty(self.n_obj)
+        j = 0
+        for i, metric in enumerate(self.fomo_estimator.accuracy_metrics_):
+            if (metric._score_func.__name__ == 'flex_loss'): 
+                f[i] = -group_acc[i-1]
+                j += 1
+            else:        
+                f[i] = metric(est, X, y)
+                j += 1
+        for metric in self.fomo_estimator.fairness_metrics_:
+            f[j] = metric(est, X, y, **self.metric_kwargs)
+            j += 1
 
 class SurrogateProblem(ElementwiseProblem):
     """ The evaluation function for each candidate weights. 
@@ -173,17 +174,6 @@ class SurrogateProblem(ElementwiseProblem):
             else:
                 est.fit(X,y,sample_weight=sample_weight)
 
-        f = np.empty(self.n_obj)
-        j = 0
-        for i, metric in enumerate(self.fomo_estimator.accuracy_metrics_):
-            f[i] = metric(est, X, y)
-            j += 1
-        for metric in self.fomo_estimator.fairness_metrics_:
-            f[j] = metric(est, X, y, **self.metric_kwargs)
-            j += 1
-
-        out['F'] = np.asarray(f)
-
         #if isinstance(self.fomo_estimator.algorithm, (Lexicase, Lexicase_NSGA2)):
         fn, fng, samples_fnr, gp_lens, overall_acc, group_acc = metrics.flex_loss(est, X, y, 'FNR', **self.metric_kwargs)
         out['fn'] = fn #FNR of all samples to be used in Flex
@@ -192,6 +182,21 @@ class SurrogateProblem(ElementwiseProblem):
         out['gp_lens'] = gp_lens #Length of each protected group to be used in Flex with weighted coin flip
         out['overall_acc'] = overall_acc #balanced_accuracy of all samples
         out['group_acc'] = group_acc #balanced_accuracy of each group
+
+        f = np.empty(self.n_obj)
+        j = 0
+        for i, metric in enumerate(self.fomo_estimator.accuracy_metrics_):
+            if (metric._score_func.__name__ == 'flex_loss'): 
+                f[i] = -group_acc[i-1]
+                j += 1
+            else:        
+                f[i] = metric(est, X, y)
+                j += 1
+        for metric in self.fomo_estimator.fairness_metrics_:
+            f[j] = metric(est, X, y, **self.metric_kwargs)
+            j += 1
+
+        out['F'] = np.asarray(f)
 
 class MLPProblem(SurrogateProblem):
     """ The evaluation function for each candidate weights. 
