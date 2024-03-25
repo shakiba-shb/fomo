@@ -281,6 +281,8 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
     if isinstance(metric,str):
         loss_fn = FPR if metric=='FPR' else FNR
     elif callable(metric):
+        if metric == balanced_accuracy_score:
+            y_pred = y_pred>0.5
         loss_fn = metric
     else:
         raise ValueError(f'metric={metric} must be "FPR", "FNR", or a callable')
@@ -332,8 +334,7 @@ def subgroup_scorer(
     abs_val,
     gamma,
     groups=None,
-    X_protected=None,
-    weights=None, 
+    X_protected=None
 ):
     """Calculate the subgroup fairness of estimator on X according to `metric'.
     TODO: handle use case when Xp is passed
@@ -358,6 +359,9 @@ def subgroup_FPR_scorer(estimator, X, y_true, **kwargs):
 
 def subgroup_FNR_scorer(estimator, X, y_true, **kwargs):
     return subgroup_scorer( estimator, X, y_true, 'FNR', **kwargs)
+
+def subgroup_accuracy_scorer(estimator, X, y_true, **kwargs):
+    return subgroup_scorer( estimator, X, y_true, balanced_accuracy_score, **kwargs)
 
 def subgroup_MSE_scorer(estimator, X, y_true, **kwargs):
     return subgroup_scorer( estimator, X, y_true, mean_squared_error, **kwargs)
@@ -397,10 +401,9 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
         X_protected = X[groups]
     
     categories = {}
-    fng = []
-    samples_fnr = []
+    samples_loss = []
     gp_lens = []
-    group_acc = []
+    groups_loss = []
 
     y_pred = estimator.predict_proba(X)[:,1]
     y_pred = pd.Series(y_pred, index=X_protected.index)
@@ -408,6 +411,9 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     if isinstance(metric,str):
         loss_fn = FPR if metric=='FPR' else FNR
     elif callable(metric):
+        if metric == balanced_accuracy_score:
+            y_pred = y_pred>0.5
+            sign = -1
         loss_fn = metric
     else:
         raise ValueError(f'metric={metric} must be "FPR", "FNR", or a callable')
@@ -420,33 +426,31 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
             mask = X_protected[col] == val
             indices = X_protected[mask].index
             categories[category_key] = indices
-         
+            
+    #category loss     
     for c, idx in categories.items():
 
         category_loss = loss_fn(
             y_true.loc[idx].values, 
             y_pred.loc[idx].values
         )
-        fng.append(category_loss)
-        gp_lens.append(len(y_true.loc[idx].values))
-        group_acc.append(balanced_accuracy_score(y_true.loc[idx], np.where(y_pred.loc[idx] > 0.5, 1, 0)))
+        groups_loss.append(sign*category_loss)
+        gp_lens.append(len(y_true.loc[idx].values)) #length of each category
 
     # print('#marginal groups: ', len(categories))
     # singles = 0
     # singles = gp_lens.count(1)
     # avg_len = sum(gp_lens) / len(gp_lens) if gp_lens else 0
 
-    #Calculate FNR of each sample
+    #Sample loss
     for idx in y_true.index:
-        fnr = loss_fn(y_true[idx], y_pred[idx])
-        samples_fnr.append(fnr)
+        #samples_loss.append(sign*loss_fn([y_true.loc[idx]], [y_pred.loc[idx]]))
+        samples_loss.append(1) #TODO: use the above line when using flex with weighted average
 
-    # Calculate FNR/FPR of all samples
-    fn = loss_fn(y_true, y_pred)    
+    # Calculate overall loss
+    overall_loss = sign*loss_fn(y_true, y_pred)
 
-    # Calculate overall balanced_accuracy
-    overall_acc = balanced_accuracy_score(y_true, y_pred > 0.5)
-    return fn, fng, samples_fnr, gp_lens, overall_acc, group_acc
+    return overall_loss, groups_loss, samples_loss, gp_lens
 
 
 def mce(estimator, X, y_true, num_bins=10):

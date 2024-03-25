@@ -58,12 +58,12 @@ def get_parent(pop):
         print("Default flex")
         get_parent._called = True
     
-    fng = pop.get("fng")
-    fn = pop.get("fn")
-    G = np.arange(fng.shape[1])
+    groups_loss = pop.get("groups_loss")
+    overall_loss = pop.get("overall_loss")
+    G = np.arange(groups_loss.shape[1])
     S = np.arange(len(pop))
     loss = []
-    epsilon = 0.001
+    #epsilon = 0.001
 
     while (len(G) > 0 and len(S) > 1):
 
@@ -72,17 +72,17 @@ def get_parent(pop):
         
         if (random.random() < 0.5):
             #half the time look at accuracy
-            loss = fng[:, g]
+            loss = groups_loss[:, g]
         else:
             #half the time look at fairness
-            loss = np.abs(fng[:, g] - fn)
+            loss = np.abs(groups_loss[:, g] - overall_loss)
 
         L = min(loss) 
-        #epsilon = np.median(np.abs(loss - np.median(loss)))
+        epsilon = np.median(np.abs(loss - np.median(loss)))
         survivors = np.where(loss <= L + epsilon)
         S = S[survivors]
-        fng = fng[survivors] 
-        fn = fn[survivors]
+        groups_loss = groups_loss[survivors] 
+        overall_loss = overall_loss[survivors]
         G = G[np.where(G != g)]
             
     S = S[:, None].astype(int, copy=False)     
@@ -94,10 +94,10 @@ def get_parent_noCoinFlip(pop):
         print("Flex with no coin flip")
         get_parent_noCoinFlip._called = True
 
-    fng = pop.get("fng")
-    fng = np.tile(fng, 2)
-    fn = pop.get("fn")
-    G = np.arange(fng.shape[1])
+    groups_loss = pop.get("groups_loss")
+    groups_loss = np.tile(groups_loss, 2)
+    overall_loss = pop.get("overall_loss")
+    G = np.arange(groups_loss.shape[1])
     S = np.arange(len(pop))
     loss = []
 
@@ -108,17 +108,17 @@ def get_parent_noCoinFlip(pop):
         
         if g < max(G)/2:
             #look at accuracy
-            loss = fng[:, g]
+            loss = groups_loss[:, g]
         else:
             #look at fairness
-            loss = np.abs(fng[:, g] - fn)
+            loss = np.abs(groups_loss[:, g] - overall_loss)
 
         L = min(loss) 
         epsilon = np.median(np.abs(loss - np.median(loss)))
         survivors = np.where(loss <= L + epsilon)
         S = S[survivors]
-        fng = fng[survivors] 
-        fn = fn[survivors]
+        groups_loss = groups_loss[survivors] 
+        overall_loss = overall_loss[survivors]
         G = G[np.where(G != g)]
 
             
@@ -132,11 +132,11 @@ def get_parent_WeightedCoinFlip(pop):
         print("Flex with weighted coin flip")
         get_parent_WeightedCoinFlip._called = True
 
-    samples_fnr = pop.get("samples_fnr")
-    fng = pop.get("fng")
-    fn = pop.get("fn")
+    samples_loss = pop.get("samples_loss")
+    groups_loss = pop.get("groups_loss")
+    overall_loss = pop.get("overall_loss")
     gp_lens = pop.get('gp_lens')
-    G = np.arange(fng.shape[1])
+    G = np.arange(groups_loss.shape[1])
     S = np.arange(len(pop))
     epsilon =0.001
     weight = random.random()
@@ -148,28 +148,29 @@ def get_parent_WeightedCoinFlip(pop):
 
         if (random.random() > weight):
             #look at fairness
-            loss = fng[:, g]
+            loss = groups_loss[:, g]
             G = G[np.where(G != g)]
         else:
             #look at accuracy
-            num_rows, num_cols = np.shape(samples_fnr)
-            indices = np.random.choice(num_cols, size = int(gp_lens[0, g]), replace = False)
-            fnr_sum = np.sum(samples_fnr[:, indices], axis=1)
-            pos_count = np.sum(samples_fnr[:, indices].astype(bool), axis=1)
-            for i in range (len(pos_count)):
-                if pos_count[i]:
-                    loss.append(fnr_sum[i]/pos_count[i])
-                else:
-                    loss.append(0)
+            # num_rows, num_cols = np.shape(samples_fnr)
+            # indices = np.random.choice(num_cols, size = int(gp_lens[0, g]), replace = False)
+            # fnr_sum = np.sum(samples_fnr[:, indices], axis=1)
+            # pos_count = np.sum(samples_fnr[:, indices].astype(bool), axis=1)
+            # for i in range (len(pos_count)):
+            #     if pos_count[i]:
+            #         loss.append(fnr_sum[i]/pos_count[i])
+            #     else:
+            #         loss.append(0)
+            loss = np.average(samples_loss)
 
         loss = np.array(loss)
         L = min(loss) 
         #epsilon = np.median(np.abs(loss - np.median(loss)))
         survivors = np.where(loss <= L + epsilon)
         S = S[survivors]
-        fng = fng[survivors] 
-        fn = fn[survivors]
-        samples_fnr = samples_fnr[survivors]
+        groups_loss = groups_loss[survivors] 
+        overall_loss = overall_loss[survivors]
+        samples_loss = samples_loss[survivors]
         gp_lens = gp_lens[survivors]
             
     S = S[:, None].astype(int, copy=False)     
@@ -189,11 +190,9 @@ def get_parent_add_test_case(pop):
         print("Default flex with added test case for accuracy")
         get_parent_add_test_case._called = True
     
-    fng = pop.get("fng")
-    fn = pop.get("fn")
-    overall_acc = pop.get("overall_acc")
-    group_acc = pop.get("group_acc")
-    G = np.arange(fng.shape[1]+1)
+    overall_loss = pop.get("overall_loss")
+    groups_loss = pop.get("groups_loss")
+    G = np.arange(groups_loss.shape[1]+1)
     S = np.arange(len(pop))
     #epsilon = 0.001
 
@@ -203,23 +202,21 @@ def get_parent_add_test_case(pop):
         loss = []
         if g == max(G):
             #test case for looking at overall accuracy
-            loss = overall_acc
+            loss = overall_loss
         
         else:
             #do default flex 
             if (random.random() < 0.5):
-                loss = group_acc[:, g] # accuarcy of the group
+                loss = groups_loss[:, g] # accuarcy of the group
             else:
-                loss = np.abs(group_acc[:, g] - overall_acc) # fairness
+                loss = np.abs(groups_loss[:, g] - overall_loss) # fairness
 
         L = min(loss) 
         epsilon = np.median(np.abs(loss - np.median(loss)))
         survivors = np.where(loss <= L + epsilon)
         S = S[survivors]
-        fng = fng[survivors] 
-        fn = fn[survivors]
-        overall_acc = overall_acc[survivors]
-        group_acc = group_acc[survivors]
+        groups_loss = groups_loss[survivors] 
+        overall_loss = overall_loss[survivors]
         G = G[np.where(G != g)]
             
     S = S[:, None].astype(int, copy=False)     
@@ -232,8 +229,7 @@ class FLEX(Selection):
      
          
     def _do(self, _, pop, n_select, n_parents=1, flag = 0, **kwargs):
-        for i in pop:
-            i.set('id', id(i))
+
         parents = []
         for i in range(n_select * n_parents): 
             #get pop_size parents
