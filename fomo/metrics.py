@@ -322,6 +322,9 @@ def subgroup_FPR_loss(y_true, y_pred, X_protected, grouping = 'intersectional', 
 def subgroup_FNR_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
     return subgroup_loss(y_true, y_pred, X_protected, 'FNR', grouping, abs_val, gamma)
 
+def subgroup_accuracy_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
+    return subgroup_loss(y_true, y_pred, X_protected, balanced_accuracy_score, grouping, abs_val, gamma)
+
 def subgroup_MSE_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
     return subgroup_loss(y_true, y_pred, X_protected, mean_squared_error, grouping, abs_val, gamma)
 
@@ -426,7 +429,7 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
             mask = X_protected[col] == val
             indices = X_protected[mask].index
             categories[category_key] = indices
-            
+
     #category loss     
     for c, idx in categories.items():
 
