@@ -51,6 +51,7 @@ from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.algorithms.base.genetic import GeneticAlgorithm
 from pymoo.operators.selection.rnd import RandomSelection
+from sklearn.metrics import balanced_accuracy_score
 
 def get_parent(pop):
 
@@ -132,10 +133,12 @@ def get_parent_WeightedCoinFlip(pop):
         print("Flex with weighted coin flip")
         get_parent_WeightedCoinFlip._called = True
 
-    samples_loss = pop.get("samples_loss")
+    #samples_loss = pop.get("samples_loss")
     groups_loss = pop.get("groups_loss")
     overall_loss = pop.get("overall_loss")
     gp_lens = pop.get('gp_lens')
+    y_true = pop.get('y_true')
+    y_pred = pop.get('y_pred')
     G = np.arange(groups_loss.shape[1])
     S = np.arange(len(pop))
     #epsilon =0.001
@@ -152,8 +155,9 @@ def get_parent_WeightedCoinFlip(pop):
             G = G[np.where(G != g)]
         else:
             #look at accuracy of a random group
-            num_rows, num_cols = np.shape(samples_loss)
-            indices = np.random.choice(num_cols, size = int(gp_lens[0, g]), replace = False)
+            ## if looking at FNR
+            # num_rows, num_cols = np.shape(samples_loss)
+            # indices = np.random.choice(num_cols, size = int(gp_lens[0, g]), replace = False)
             # fnr_sum = np.sum(samples_fnr[:, indices], axis=1)
             # pos_count = np.sum(samples_fnr[:, indices].astype(bool), axis=1)
             # for i in range (len(pos_count)):
@@ -161,7 +165,11 @@ def get_parent_WeightedCoinFlip(pop):
             #         loss.append(fnr_sum[i]/pos_count[i])
             #     else:
             #         loss.append(0)
-            loss = np.average(samples_loss[:, indices], axis=1)
+
+            ## if looking at balanced accuracy
+            indices = np.random.choice(len(y_true[0]), size = int(gp_lens[0, g]), replace = False)
+            for i in range(len(S)):
+                loss.append(-1*balanced_accuracy_score(y_true[i, indices], y_pred[i, indices]))
 
         loss = np.array(loss)
         L = min(loss) 
@@ -170,8 +178,10 @@ def get_parent_WeightedCoinFlip(pop):
         S = S[survivors]
         groups_loss = groups_loss[survivors] 
         overall_loss = overall_loss[survivors]
-        samples_loss = samples_loss[survivors]
+        #samples_loss = samples_loss[survivors]
         gp_lens = gp_lens[survivors]
+        y_true = y_true[survivors]  
+        y_pred = y_pred[survivors]
             
     S = S[:, None].astype(int, copy=False)     
     return random.choice(S)

@@ -446,14 +446,15 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     # avg_len = sum(gp_lens) / len(gp_lens) if gp_lens else 0
 
     # sample loss
-    for idx in y_true.index:
-        #TODO: turn this off if flex with weighted coin flip is not used
-        samples_loss.append(sign*loss_fn([y_true.loc[idx]], [y_pred.loc[idx]]))
-
+    # for idx in y_true.index:
+    #     #TODO: turn this off if flex with weighted coin flip is not used
+    #     samples_loss.append(sign*loss_fn([y_true.loc[idx]], [y_pred.loc[idx]]))
+    #     samples_loss1.append(y_true.loc[idx] == y_pred.loc[idx])
+    samples_loss = 1
     # overall loss
     overall_loss = sign*loss_fn(y_true, y_pred)
 
-    return overall_loss, groups_loss, samples_loss, gp_lens
+    return overall_loss, groups_loss, samples_loss, gp_lens, y_true, y_pred
 
 
 def mce(estimator, X, y_true, num_bins=10):
