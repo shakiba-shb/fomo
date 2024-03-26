@@ -138,7 +138,7 @@ def get_parent_WeightedCoinFlip(pop):
     gp_lens = pop.get('gp_lens')
     G = np.arange(groups_loss.shape[1])
     S = np.arange(len(pop))
-    epsilon =0.001
+    #epsilon =0.001
     weight = random.random()
 
     while (len(G) > 0 and len(S) > 1):
@@ -147,13 +147,13 @@ def get_parent_WeightedCoinFlip(pop):
         loss = []
 
         if (random.random() > weight):
-            #look at fairness
+            #look at accuracy of the selected group
             loss = groups_loss[:, g]
             G = G[np.where(G != g)]
         else:
-            #look at accuracy
-            # num_rows, num_cols = np.shape(samples_fnr)
-            # indices = np.random.choice(num_cols, size = int(gp_lens[0, g]), replace = False)
+            #look at accuracy of a random group
+            num_rows, num_cols = np.shape(samples_loss)
+            indices = np.random.choice(num_cols, size = int(gp_lens[0, g]), replace = False)
             # fnr_sum = np.sum(samples_fnr[:, indices], axis=1)
             # pos_count = np.sum(samples_fnr[:, indices].astype(bool), axis=1)
             # for i in range (len(pos_count)):
@@ -161,11 +161,11 @@ def get_parent_WeightedCoinFlip(pop):
             #         loss.append(fnr_sum[i]/pos_count[i])
             #     else:
             #         loss.append(0)
-            loss = np.average(samples_loss)
+            loss = np.average(samples_loss[:, indices], axis=1)
 
         loss = np.array(loss)
         L = min(loss) 
-        #epsilon = np.median(np.abs(loss - np.median(loss)))
+        epsilon = np.median(np.abs(loss - np.median(loss)))
         survivors = np.where(loss <= L + epsilon)
         S = S[survivors]
         groups_loss = groups_loss[survivors] 
@@ -233,7 +233,7 @@ class FLEX(Selection):
         parents = []
         for i in range(n_select * n_parents): 
             #get pop_size parents
-            p = get_parent_add_test_case(pop)
+            p = get_parent_WeightedCoinFlip(pop)
             parents.append(p)
 
         # selected = {}

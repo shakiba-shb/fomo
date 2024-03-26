@@ -430,7 +430,7 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
             indices = X_protected[mask].index
             categories[category_key] = indices
 
-    #category loss     
+    # category loss     
     for c, idx in categories.items():
 
         category_loss = loss_fn(
@@ -445,12 +445,12 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     # singles = gp_lens.count(1)
     # avg_len = sum(gp_lens) / len(gp_lens) if gp_lens else 0
 
-    #Sample loss
+    # sample loss
     for idx in y_true.index:
-        #samples_loss.append(sign*loss_fn([y_true.loc[idx]], [y_pred.loc[idx]]))
-        samples_loss.append(1) #TODO: use the above line when using flex with weighted average
+        #TODO: turn this off if flex with weighted coin flip is not used
+        samples_loss.append(sign*loss_fn([y_true.loc[idx]], [y_pred.loc[idx]]))
 
-    # Calculate overall loss
+    # overall loss
     overall_loss = sign*loss_fn(y_true, y_pred)
 
     return overall_loss, groups_loss, samples_loss, gp_lens
