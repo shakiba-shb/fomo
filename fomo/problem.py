@@ -87,23 +87,17 @@ class BasicProblem(ElementwiseProblem):
                 est.fit(X,y,sample_weight=sample_weight)
 
         #if isinstance(self.fomo_estimator.algorithm, (Lexicase, Lexicase_NSGA2)):
-        overall_loss, groups_loss, samples_loss, gp_lens, y_true, y_pred = metrics.flex_loss(est, X, y, balanced_accuracy_score, **self.metric_kwargs)
+        overall_loss, group_loss, random_group_loss, gp_lens = metrics.flex_loss(est, X, y, balanced_accuracy_score, **self.metric_kwargs)
         out['overall_loss'] = overall_loss #loss of all samples to be used in Flex
-        out['groups_loss'] = groups_loss #loss of each group
-        out['samples_loss'] = samples_loss #loss of each sample 
+        out['group_loss'] = group_loss #loss of each group
+        out['random_group_loss'] = random_group_loss #loss of each sample 
         out['gp_lens'] = gp_lens #length of each marginal group
-        out['y_ture'] = y_true
-        out['y_pred'] = y_pred
 
         f = np.empty(self.n_obj)
         j = 0
         for i, metric in enumerate(self.fomo_estimator.accuracy_metrics_):
-            if (metric._score_func.__name__ == 'flex_loss'): 
-                f[i] = -groups_loss[i-1]
-                j += 1
-            else:        
-                f[i] = metric(est, X, y)
-                j += 1
+            f[i] = metric(est, X, y)
+            j += 1
         for metric in self.fomo_estimator.fairness_metrics_:
             f[j] = metric(est, X, y, **self.metric_kwargs)
             j += 1
@@ -178,24 +172,17 @@ class SurrogateProblem(ElementwiseProblem):
                 est.fit(X,y,sample_weight=sample_weight)
 
         #if isinstance(self.fomo_estimator.algorithm, (Lexicase, Lexicase_NSGA2)):
-        overall_loss, groups_loss, samples_loss, gp_lens, y_true, y_pred = metrics.flex_loss(est, X, y, balanced_accuracy_score, **self.metric_kwargs)
+        overall_loss, group_loss, random_group_loss, gp_lens = metrics.flex_loss(est, X, y, balanced_accuracy_score, **self.metric_kwargs)
         out['overall_loss'] = overall_loss #loss of all samples to be used in Flex
-        out['groups_loss'] = groups_loss #loss of each group
-        out['samples_loss'] = samples_loss #loss of each sample 
+        out['group_loss'] = group_loss #loss of each group
+        out['random_group_loss'] = random_group_loss #loss of each sample 
         out['gp_lens'] = gp_lens #length of each marginal group
-        out['y_true'] = y_true
-        out['y_pred'] = y_pred
         
-
         f = np.empty(self.n_obj)
         j = 0
         for i, metric in enumerate(self.fomo_estimator.accuracy_metrics_):
-            if (metric._score_func.__name__ == 'flex_loss'): 
-                f[i] = -groups_loss[i-1]
-                j += 1
-            else:        
-                f[i] = metric(est, X, y)
-                j += 1
+            f[i] = metric(est, X, y)
+            j += 1
         for metric in self.fomo_estimator.fairness_metrics_:
             f[j] = metric(est, X, y, **self.metric_kwargs)
             j += 1

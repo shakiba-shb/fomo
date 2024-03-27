@@ -59,9 +59,9 @@ def get_parent(pop):
         print("Default flex")
         get_parent._called = True
     
-    groups_loss = pop.get("groups_loss")
+    group_loss = pop.get("group_loss")
     overall_loss = pop.get("overall_loss")
-    G = np.arange(groups_loss.shape[1])
+    G = np.arange(group_loss.shape[1])
     S = np.arange(len(pop))
     loss = []
     #epsilon = 0.001
@@ -73,16 +73,16 @@ def get_parent(pop):
         
         if (random.random() < 0.5):
             #half the time look at accuracy
-            loss = groups_loss[:, g]
+            loss = group_loss[:, g]
         else:
             #half the time look at fairness
-            loss = np.abs(groups_loss[:, g] - overall_loss)
+            loss = np.abs(group_loss[:, g] - overall_loss)
 
         L = min(loss) 
         epsilon = np.median(np.abs(loss - np.median(loss)))
         survivors = np.where(loss <= L + epsilon)
         S = S[survivors]
-        groups_loss = groups_loss[survivors] 
+        group_loss = group_loss[survivors] 
         overall_loss = overall_loss[survivors]
         G = G[np.where(G != g)]
             
@@ -95,10 +95,10 @@ def get_parent_noCoinFlip(pop):
         print("Flex with no coin flip")
         get_parent_noCoinFlip._called = True
 
-    groups_loss = pop.get("groups_loss")
-    groups_loss = np.tile(groups_loss, 2)
+    group_loss = pop.get("group_loss")
+    group_loss = np.tile(group_loss, 2)
     overall_loss = pop.get("overall_loss")
-    G = np.arange(groups_loss.shape[1])
+    G = np.arange(group_loss.shape[1])
     S = np.arange(len(pop))
     loss = []
 
@@ -109,16 +109,16 @@ def get_parent_noCoinFlip(pop):
         
         if g < max(G)/2:
             #look at accuracy
-            loss = groups_loss[:, g]
+            loss = group_loss[:, g]
         else:
             #look at fairness
-            loss = np.abs(groups_loss[:, g] - overall_loss)
+            loss = np.abs(group_loss[:, g] - overall_loss)
 
         L = min(loss) 
         epsilon = np.median(np.abs(loss - np.median(loss)))
         survivors = np.where(loss <= L + epsilon)
         S = S[survivors]
-        groups_loss = groups_loss[survivors] 
+        group_loss = group_loss[survivors] 
         overall_loss = overall_loss[survivors]
         G = G[np.where(G != g)]
 
@@ -134,12 +134,13 @@ def get_parent_WeightedCoinFlip(pop):
         get_parent_WeightedCoinFlip._called = True
 
     #samples_loss = pop.get("samples_loss")
-    groups_loss = pop.get("groups_loss")
+    group_loss = pop.get("group_loss")
+    random_group_loss = pop.get("random_group_loss")
     overall_loss = pop.get("overall_loss")
     gp_lens = pop.get('gp_lens')
-    y_true = pop.get('y_true')
-    y_pred = pop.get('y_pred')
-    G = np.arange(groups_loss.shape[1])
+    # y_true = pop.get('y_true')
+    # y_pred = pop.get('y_pred')
+    G = np.arange(group_loss.shape[1])
     S = np.arange(len(pop))
     #epsilon =0.001
     weight = random.random()
@@ -151,7 +152,7 @@ def get_parent_WeightedCoinFlip(pop):
 
         if (random.random() > weight):
             #look at accuracy of the selected group
-            loss = groups_loss[:, g]
+            loss = group_loss[:, g]
             G = G[np.where(G != g)]
         else:
             #look at accuracy of a random group
@@ -167,21 +168,21 @@ def get_parent_WeightedCoinFlip(pop):
             #         loss.append(0)
 
             ## if looking at balanced accuracy
-            indices = np.random.choice(len(y_true[0]), size = int(gp_lens[0, g]), replace = False)
-            for i in range(len(S)):
-                loss.append(-1*balanced_accuracy_score(y_true[i, indices], y_pred[i, indices]))
-
+            # indices = np.random.choice(len(y_true[0]), size = int(gp_lens[0, g]), replace = False)
+            # for i in range(len(S)):
+            #     loss.append(-1*balanced_accuracy_score(y_true[i, indices], y_pred[i, indices]))
+            loss = random_group_loss[:, g]
+        
         loss = np.array(loss)
         L = min(loss) 
         epsilon = np.median(np.abs(loss - np.median(loss)))
         survivors = np.where(loss <= L + epsilon)
         S = S[survivors]
-        groups_loss = groups_loss[survivors] 
+        group_loss = group_loss[survivors] 
+        random_group_loss = random_group_loss[survivors]
         overall_loss = overall_loss[survivors]
         #samples_loss = samples_loss[survivors]
         gp_lens = gp_lens[survivors]
-        y_true = y_true[survivors]  
-        y_pred = y_pred[survivors]
             
     S = S[:, None].astype(int, copy=False)     
     return random.choice(S)
@@ -201,8 +202,8 @@ def get_parent_add_test_case(pop):
         get_parent_add_test_case._called = True
     
     overall_loss = pop.get("overall_loss")
-    groups_loss = pop.get("groups_loss")
-    G = np.arange(groups_loss.shape[1]+1)
+    group_loss = pop.get("group_loss")
+    G = np.arange(group_loss.shape[1]+1)
     S = np.arange(len(pop))
     #epsilon = 0.001
 
@@ -217,15 +218,15 @@ def get_parent_add_test_case(pop):
         else:
             #do default flex 
             if (random.random() < 0.5):
-                loss = groups_loss[:, g] # accuarcy of the group
+                loss = group_loss[:, g] # accuarcy of the group
             else:
-                loss = np.abs(groups_loss[:, g] - overall_loss) # fairness
+                loss = np.abs(group_loss[:, g] - overall_loss) # fairness
 
         L = min(loss) 
         epsilon = np.median(np.abs(loss - np.median(loss)))
         survivors = np.where(loss <= L + epsilon)
         S = S[survivors]
-        groups_loss = groups_loss[survivors] 
+        group_loss = group_loss[survivors] 
         overall_loss = overall_loss[survivors]
         G = G[np.where(G != g)]
             

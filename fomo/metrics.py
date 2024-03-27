@@ -406,7 +406,8 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     categories = {}
     samples_loss = []
     gp_lens = []
-    groups_loss = []
+    group_loss = []
+    random_group_loss = []
 
     y_pred = estimator.predict_proba(X)[:,1]
     y_pred = pd.Series(y_pred, index=X_protected.index)
@@ -437,8 +438,13 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
             y_true.loc[idx].values, 
             y_pred.loc[idx].values
         )
-        groups_loss.append(sign*category_loss)
+        group_loss.append(sign*category_loss)
         gp_lens.append(len(y_true.loc[idx].values)) #length of each category
+        
+    # random groups loss
+    for s in gp_lens:
+        indices = np.random.choice(y_true.index, size = int(s), replace = False)
+        random_group_loss.append(sign*loss_fn(y_true[indices].values, y_pred[indices].values))
 
     # print('#marginal groups: ', len(categories))
     # singles = 0
@@ -450,11 +456,10 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     #     #TODO: turn this off if flex with weighted coin flip is not used
     #     samples_loss.append(sign*loss_fn([y_true.loc[idx]], [y_pred.loc[idx]]))
     #     samples_loss1.append(y_true.loc[idx] == y_pred.loc[idx])
-    samples_loss = 1
     # overall loss
     overall_loss = sign*loss_fn(y_true, y_pred)
 
-    return overall_loss, groups_loss, samples_loss, gp_lens, y_true, y_pred
+    return overall_loss, group_loss, random_group_loss, gp_lens
 
 
 def mce(estimator, X, y_true, num_bins=10):
