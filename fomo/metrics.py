@@ -311,10 +311,11 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
         if gamma:
             deviation *= g
 
-        if deviation > max_loss:
-            max_loss = deviation
+        # if deviation > max_loss:
+        #     max_loss = deviation
+        max_loss += deviation
 
-    return max_loss
+    return max_loss/len(categories)
 
 def subgroup_FPR_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
     return subgroup_loss(y_true, y_pred, X_protected, 'FPR', grouping, abs_val, gamma)
