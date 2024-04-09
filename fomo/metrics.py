@@ -37,7 +37,7 @@ import pandas as pd
 import logging
 import itertools as it
 from fomo.utils import categorize 
-from sklearn.metrics import mean_squared_error, balanced_accuracy_score
+from sklearn.metrics import mean_squared_error, balanced_accuracy_score, accuracy_score
 warnings.filterwarnings("ignore", category=UserWarning)
 
 logger = logging.getLogger(__name__)
@@ -280,14 +280,16 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
 
     if isinstance(metric,str):
         loss_fn = FPR if metric=='FPR' else FNR
+        sign=+1
     elif callable(metric):
-        if metric == balanced_accuracy_score:
+        if metric == accuracy_score:
             y_pred = y_pred>0.5
+            sign=-1
         loss_fn = metric
     else:
         raise ValueError(f'metric={metric} must be "FPR", "FNR", or a callable')
 
-    base_loss = loss_fn(y_true, y_pred)
+    #base_loss = loss_fn(y_true, y_pred)
     max_loss = 0.0
     for c, idx in categories.items():
         # for FPR and FNR, gamma is also conditioned on the outcome probability
@@ -303,19 +305,19 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
             y_pred.loc[idx].values
         )
         
-        deviation = category_loss - base_loss
+        # deviation = category_loss - base_loss
 
-        if abs_val:
-            deviation = np.abs(deviation)
+        # if abs_val:
+        #     deviation = np.abs(deviation)
         
-        if gamma:
-            deviation *= g
+        # if gamma:
+        #     deviation *= g
 
         # if deviation > max_loss:
         #     max_loss = deviation
-        max_loss += deviation
+        max_loss += category_loss
 
-    return max_loss/len(categories)
+    return (sign*max_loss)/len(categories)
 
 def subgroup_FPR_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
     return subgroup_loss(y_true, y_pred, X_protected, 'FPR', grouping, abs_val, gamma)
@@ -324,7 +326,7 @@ def subgroup_FNR_loss(y_true, y_pred, X_protected, grouping = 'intersectional', 
     return subgroup_loss(y_true, y_pred, X_protected, 'FNR', grouping, abs_val, gamma)
 
 def subgroup_accuracy_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
-    return subgroup_loss(y_true, y_pred, X_protected, balanced_accuracy_score, grouping, abs_val, gamma)
+    return subgroup_loss(y_true, y_pred, X_protected, accuracy_score, grouping, abs_val, gamma)
 
 def subgroup_MSE_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
     return subgroup_loss(y_true, y_pred, X_protected, mean_squared_error, grouping, abs_val, gamma)
@@ -365,7 +367,7 @@ def subgroup_FNR_scorer(estimator, X, y_true, **kwargs):
     return subgroup_scorer( estimator, X, y_true, 'FNR', **kwargs)
 
 def subgroup_accuracy_scorer(estimator, X, y_true, **kwargs):
-    return subgroup_scorer( estimator, X, y_true, balanced_accuracy_score, **kwargs)
+    return subgroup_scorer( estimator, X, y_true, accuracy_score, **kwargs)
 
 def subgroup_MSE_scorer(estimator, X, y_true, **kwargs):
     return subgroup_scorer( estimator, X, y_true, mean_squared_error, **kwargs)
@@ -405,10 +407,10 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
         X_protected = X[groups]
     
     categories = {}
-    samples_loss = []
+    samples_loss = pd.Series(index=X_protected.index, dtype=int)
     gp_lens = []
     group_loss = []
-    random_group_loss = []
+    #random_group_loss = []
 
     y_pred = estimator.predict_proba(X)[:,1]
     y_pred = pd.Series(y_pred, index=X_protected.index)
@@ -416,13 +418,14 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     if isinstance(metric,str):
         loss_fn = FPR if metric=='FPR' else FNR
     elif callable(metric):
-        if metric == balanced_accuracy_score:
+        if metric == accuracy_score:
             y_pred = y_pred>0.5
             sign = -1
         loss_fn = metric
     else:
         raise ValueError(f'metric={metric} must be "FPR", "FNR", or a callable')
 
+    #TODO: find a way to create categories only once instead of every time flex_loss is called
     categories = {}
     for col in X_protected.columns:
         unique_values = X_protected[col].unique()
@@ -442,10 +445,10 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
         group_loss.append(sign*category_loss)
         gp_lens.append(len(y_true.loc[idx].values)) #length of each category
         
-    # random groups loss
-    for s in gp_lens:
-        indices = np.random.choice(y_true.index, size = int(s), replace = False)
-        random_group_loss.append(sign*loss_fn(y_true[indices].values, y_pred[indices].values))
+    # # random groups loss
+    # for s in gp_lens:
+    #     indices = np.random.choice(y_true.index, size = int(s), replace = False)
+    #     random_group_loss.append(sign*loss_fn(y_true[indices].values, y_pred[indices].values))
 
     # print('#marginal groups: ', len(categories))
     # singles = 0
@@ -453,14 +456,14 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     # avg_len = sum(gp_lens) / len(gp_lens) if gp_lens else 0
 
     # sample loss
-    # for idx in y_true.index:
-    #     #TODO: turn this off if flex with weighted coin flip is not used
-    #     samples_loss.append(sign*loss_fn([y_true.loc[idx]], [y_pred.loc[idx]]))
-    #     samples_loss1.append(y_true.loc[idx] == y_pred.loc[idx])
+    for idx in X_protected.index:
+        #TODO: turn this off if flex with weighted coin flip is not used
+        samples_loss[idx] = 0 if y_true.loc[idx] != y_pred.loc[idx] else 1
+
     # overall loss
     overall_loss = sign*loss_fn(y_true, y_pred)
 
-    return overall_loss, group_loss, random_group_loss, gp_lens
+    return overall_loss, group_loss, samples_loss, gp_lens
 
 
 def mce(estimator, X, y_true, num_bins=10):

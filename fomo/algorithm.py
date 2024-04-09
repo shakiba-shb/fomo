@@ -127,17 +127,17 @@ def get_parent_noCoinFlip(pop):
     return random.choice(S)
 
 
-def get_parent_WeightedCoinFlip(pop):
+def get_parent_WeightedCoinFlip(pop, samples_loss, group_loss, overall_loss, gp_lens):
 
     if not hasattr(get_parent_WeightedCoinFlip, "_called"):
         print("Flex with weighted coin flip")
         get_parent_WeightedCoinFlip._called = True
 
-    #samples_loss = pop.get("samples_loss")
-    group_loss = pop.get("group_loss")
-    random_group_loss = pop.get("random_group_loss")
-    overall_loss = pop.get("overall_loss")
-    gp_lens = pop.get('gp_lens')
+    # samples_loss = pop.get("samples_loss")
+    # group_loss = pop.get("group_loss")
+    # random_group_loss = pop.get("random_group_loss")
+    # overall_loss = pop.get("overall_loss")
+    # gp_lens = pop.get('gp_lens')
     # y_true = pop.get('y_true')
     # y_pred = pop.get('y_pred')
     G = np.arange(group_loss.shape[1])
@@ -171,7 +171,9 @@ def get_parent_WeightedCoinFlip(pop):
             # indices = np.random.choice(len(y_true[0]), size = int(gp_lens[0, g]), replace = False)
             # for i in range(len(S)):
             #     loss.append(-1*balanced_accuracy_score(y_true[i, indices], y_pred[i, indices]))
-            loss = random_group_loss[:, g]
+            #loss = random_group_loss[:, g]
+            indices = np.random.choice(samples_loss.shape[1], size = int(gp_lens[0, g]), replace = False)
+            loss = -1*np.mean(samples_loss[:, indices], axis=1)
         
         loss = np.array(loss)
         L = min(loss) 
@@ -179,9 +181,9 @@ def get_parent_WeightedCoinFlip(pop):
         survivors = np.where(loss <= L + epsilon)
         S = S[survivors]
         group_loss = group_loss[survivors] 
-        random_group_loss = random_group_loss[survivors]
+        #random_group_loss = random_group_loss[survivors]
         overall_loss = overall_loss[survivors]
-        #samples_loss = samples_loss[survivors]
+        samples_loss = samples_loss[survivors]
         gp_lens = gp_lens[survivors]
             
     S = S[:, None].astype(int, copy=False)     
@@ -241,10 +243,14 @@ class FLEX(Selection):
          
     def _do(self, _, pop, n_select, n_parents=1, flag = 0, **kwargs):
 
+        samples_loss = pop.get("samples_loss")
+        group_loss = pop.get("group_loss")
+        overall_loss = pop.get("overall_loss")
+        gp_lens = pop.get('gp_lens')
         parents = []
         for i in range(n_select * n_parents): 
             #get pop_size parents
-            p = get_parent_WeightedCoinFlip(pop)
+            p = get_parent_WeightedCoinFlip(pop, samples_loss=samples_loss, group_loss=group_loss, overall_loss=overall_loss, gp_lens=gp_lens)
             parents.append(p)
 
         # selected = {}
