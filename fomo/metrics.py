@@ -37,7 +37,7 @@ import pandas as pd
 import logging
 import itertools as it
 from fomo.utils import categorize 
-from sklearn.metrics import mean_squared_error, balanced_accuracy_score, accuracy_score
+from sklearn.metrics import mean_squared_error, balanced_accuracy_score, accuracy_score, log_loss
 warnings.filterwarnings("ignore", category=UserWarning)
 
 logger = logging.getLogger(__name__)
@@ -277,7 +277,7 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
     # gp_lens = [len(lst) for lst in categories.values()]
     # singles = gp_lens.count(1)
     # avg_len = sum(gp_lens) / len(gp_lens) if gp_lens else 0
-
+    sign = 1
     if isinstance(metric,str):
         loss_fn = FPR if metric=='FPR' else FNR
         sign=+1
@@ -302,7 +302,8 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
 
         category_loss = loss_fn(
             y_true.loc[idx].values, 
-            y_pred.loc[idx].values
+            y_pred.loc[idx].values,
+            labels = [0,1]
         )
         
         # deviation = category_loss - base_loss
@@ -327,6 +328,9 @@ def subgroup_FNR_loss(y_true, y_pred, X_protected, grouping = 'intersectional', 
 
 def subgroup_accuracy_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
     return subgroup_loss(y_true, y_pred, X_protected, accuracy_score, grouping, abs_val, gamma)
+
+def subgroup_log_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
+    return subgroup_loss(y_true, y_pred, X_protected, log_loss, grouping, abs_val, gamma)
 
 def subgroup_MSE_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
     return subgroup_loss(y_true, y_pred, X_protected, mean_squared_error, grouping, abs_val, gamma)
@@ -369,6 +373,9 @@ def subgroup_FNR_scorer(estimator, X, y_true, **kwargs):
 def subgroup_accuracy_scorer(estimator, X, y_true, **kwargs):
     return subgroup_scorer( estimator, X, y_true, accuracy_score, **kwargs)
 
+def subgroup_log_loss_scorer(estimator, X, y_true, **kwargs):
+    return subgroup_scorer( estimator, X, y_true, log_loss, **kwargs)
+
 def subgroup_MSE_scorer(estimator, X, y_true, **kwargs):
     return subgroup_scorer( estimator, X, y_true, mean_squared_error, **kwargs)
 
@@ -407,10 +414,10 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
         X_protected = X[groups]
     
     categories = {}
-    samples_loss = pd.Series(index=X_protected.index, dtype=int)
+    #samples_loss = pd.Series(index=X_protected.index, dtype=int)
     gp_lens = []
     group_loss = []
-    #random_group_loss = []
+    sign = 1
 
     y_pred = estimator.predict_proba(X)[:,1]
     y_pred = pd.Series(y_pred, index=X_protected.index)
@@ -444,11 +451,6 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
         )
         group_loss.append(sign*category_loss)
         gp_lens.append(len(y_true.loc[idx].values)) #length of each category
-        
-    # # random groups loss
-    # for s in gp_lens:
-    #     indices = np.random.choice(y_true.index, size = int(s), replace = False)
-    #     random_group_loss.append(sign*loss_fn(y_true[indices].values, y_pred[indices].values))
 
     # print('#marginal groups: ', len(categories))
     # singles = 0
@@ -456,14 +458,11 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     # avg_len = sum(gp_lens) / len(gp_lens) if gp_lens else 0
 
     # sample loss
-    for idx in X_protected.index:
-        #TODO: turn this off if flex with weighted coin flip is not used
-        samples_loss[idx] = 0 if y_true.loc[idx] != y_pred.loc[idx] else 1
+    # for idx in X_protected.index:
+    #     #TODO: turn this off if flex with weighted coin flip is not used
+    #     samples_loss[idx] = 0 if y_true.loc[idx] != y_pred.loc[idx] else 1
 
-    # overall loss
-    overall_loss = sign*loss_fn(y_true, y_pred)
-
-    return overall_loss, group_loss, samples_loss, gp_lens
+    return group_loss, gp_lens, y_true, y_pred
 
 
 def mce(estimator, X, y_true, num_bins=10):

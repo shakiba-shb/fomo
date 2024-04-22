@@ -51,7 +51,7 @@ from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.algorithms.base.genetic import GeneticAlgorithm
 from pymoo.operators.selection.rnd import RandomSelection
-from sklearn.metrics import balanced_accuracy_score
+from sklearn.metrics import balanced_accuracy_score, log_loss
 
 def get_parent(pop):
 
@@ -127,24 +127,16 @@ def get_parent_noCoinFlip(pop):
     return random.choice(S)
 
 
-def get_parent_WeightedCoinFlip(pop, samples_loss, group_loss, overall_loss, gp_lens, epsilon=0):
+def get_parent_WeightedCoinFlip(pop, group_loss, overall_loss, gp_lens, epsilon=0):
 
     if not hasattr(get_parent_WeightedCoinFlip, "_called"):
         print("Flex with weighted coin flip")
         get_parent_WeightedCoinFlip._called = True
 
-    # samples_loss = pop.get("samples_loss")
-    # group_loss = pop.get("group_loss")
-    # random_group_loss = pop.get("random_group_loss")
-    # overall_loss = pop.get("overall_loss")
-    # gp_lens = pop.get('gp_lens')
-    # y_true = pop.get('y_true')
-    # y_pred = pop.get('y_pred')
     G = np.arange(group_loss.shape[1])
     S = np.arange(len(pop))
     #epsilon =0.001
     weight = random.random()
-    selection_event = 0
 
     while (len(G) > 0 and len(S) > 1):
 
@@ -155,8 +147,7 @@ def get_parent_WeightedCoinFlip(pop, samples_loss, group_loss, overall_loss, gp_
             #look at accuracy of the selected group
             loss = group_loss[:, g]
             G = G[np.where(G != g)]
-            # if selection_event == 0:
-            #     epsilon = np.median(np.abs(loss - np.median(loss)))
+ 
         else:
             #look at accuracy of a random group
             ## if looking at FNR
@@ -169,28 +160,22 @@ def get_parent_WeightedCoinFlip(pop, samples_loss, group_loss, overall_loss, gp_
             #         loss.append(fnr_sum[i]/pos_count[i])
             #     else:
             #         loss.append(0)
-
-            ## if looking at balanced accuracy
-            # indices = np.random.choice(len(y_true[0]), size = int(gp_lens[0, g]), replace = False)
-            # for i in range(len(S)):
-            #     loss.append(-1*balanced_accuracy_score(y_true[i, indices], y_pred[i, indices]))
-            #loss = random_group_loss[:, g]
-            indices = np.random.choice(samples_loss.shape[1], size = int(gp_lens[0, g]), replace = False)
-            loss = -1*np.mean(samples_loss[:, indices], axis=1)
-            # if selection_event == 0:
-            #     epsilon = np.median(np.abs(loss - np.median(loss)))
+            y_true = pop.get('y_true')
+            y_pred = pop.get('y_pred')
+            indices = np.random.choice(len(y_true[0]), size = int(gp_lens[g]), replace = False)
+            for i in range(len(S)):
+                loss.append(log_loss(y_true[i, indices], y_pred[i, indices]))
+            # indices = np.random.choice(samples_loss.shape[1], size = int(gp_lens[0, g]), replace = False)
+            # loss = -1*np.mean(samples_loss[:, indices], axis=1)
         
         loss = np.array(loss)
         L = min(loss) 
-        #epsilon = np.median(np.abs(loss - np.median(loss)))
+        epsilon = np.median(np.abs(loss - np.median(loss)))
         survivors = np.where(loss <= L + epsilon)
         S = S[survivors]
         group_loss = group_loss[survivors] 
-        #random_group_loss = random_group_loss[survivors]
         overall_loss = overall_loss[survivors]
-        samples_loss = samples_loss[survivors]
-        gp_lens = gp_lens[survivors]
-        selection_event += 1
+        #samples_loss = samples_loss[survivors]
             
     S = S[:, None].astype(int, copy=False)     
     return random.choice(S)
@@ -247,20 +232,32 @@ class FLEX(Selection):
         super().__init__(**kwargs)
      
          
-    def _do(self, _, pop, n_select, n_parents=1, flag = 0, **kwargs):
+    def _do(self, _, pop, n_select, n_parents=1, **kwargs):
 
-        samples_loss = pop.get("samples_loss")
+        #samples_loss = pop.get("samples_loss")
+        epsilon_type = kwargs['algorithm'].epsilon_type
         group_loss = pop.get("group_loss")
-        overall_loss = pop.get("overall_loss")
-        gp_lens = pop.get('gp_lens')
+        overall_loss = pop.get("F")[:, 0]
+        gp_lens = pop.get('gp_lens')[0]
         parents = []
-        indices = np.random.choice(samples_loss.shape[1], size = int(random.choice(gp_lens[0])), replace = False)
-        loss = loss = -1*np.mean(samples_loss[:, indices], axis=1)
-        epsilon = np.mean(np.abs(loss - np.mean(loss)))
-        for i in range(n_select * n_parents): 
-            #get pop_size parents
-            p = get_parent_WeightedCoinFlip(pop, samples_loss=samples_loss, group_loss=group_loss, overall_loss=overall_loss, gp_lens=gp_lens, epsilon=epsilon)
-            parents.append(p)
+        if epsilon_type == 'semi-dynamic':
+            y_true = pop.get('y_true')
+            y_pred = pop.get('y_pred')
+            indices = np.random.choice(len(y_true[0]), size = int(random.choice(gp_lens)), replace = False)
+            loss = []
+            for i in range(len(pop)):
+                loss.append(log_loss(y_true[i, indices], y_pred[i, indices]))
+            epsilon = np.median(np.abs(loss - np.median(loss)))
+            for i in range(n_select * n_parents): 
+                #get pop_size parents
+                p = get_parent_WeightedCoinFlip(pop, group_loss=group_loss, overall_loss=overall_loss, gp_lens=gp_lens, epsilon=epsilon)
+                parents.append(p)
+        else:
+            for i in range(n_select * n_parents): 
+                #get pop_size parents
+                p = get_parent_WeightedCoinFlip(pop, group_loss=group_loss, overall_loss=overall_loss, gp_lens=gp_lens)
+                parents.append(p)
+
 
         # selected = {}
         # population = {'X': pop.get('X').tolist(), 'F': pop.get('F').tolist(), 'id':pop.get('id').tolist(), 'fng': pop.get('fng').tolist()}
@@ -285,6 +282,7 @@ class Lexicase_NSGA2(GeneticAlgorithm):
 
     def __init__(self,
                  pop_size=100,
+                 epsilon_type = 'dynamic',
                  sampling=FloatRandomSampling(),
                  selection=FLEX(),
                  crossover=SBX(eta=15, prob=0.9),
@@ -306,6 +304,7 @@ class Lexicase_NSGA2(GeneticAlgorithm):
         
         self.termination = DefaultMultiObjectiveTermination()
         self.tournament_type = 'comp_by_dom_and_crowding'
+        self.epsilon_type = epsilon_type
 
     def _set_optimum(self, **kwargs):
         if not has_feasible(self.pop):
@@ -317,6 +316,7 @@ class Lexicase(GeneticAlgorithm):
 
     def __init__(self,
                  pop_size=100,
+                 epsilon_type = 'dynamic',
                  sampling=FloatRandomSampling(),
                  selection=FLEX(),
                  crossover=SBX(eta=15, prob=0.9),
@@ -335,3 +335,6 @@ class Lexicase(GeneticAlgorithm):
             output=output,
             advance_after_initial_infill=True,
             **kwargs)
+        
+        self.termination = DefaultMultiObjectiveTermination()
+        self.epsilon_type = epsilon_type

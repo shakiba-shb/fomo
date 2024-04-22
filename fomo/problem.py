@@ -40,7 +40,7 @@ import inspect
 import fomo.metrics as metrics
 from .surrogate_models import MLP, Linear, InterLinear
 from fomo.algorithm import Lexicase, Lexicase_NSGA2
-from sklearn.metrics import balanced_accuracy_score, make_scorer, accuracy_score
+from sklearn.metrics import balanced_accuracy_score, make_scorer, accuracy_score, log_loss
 
 class BasicProblem(ElementwiseProblem):
     """ The evaluation function for each candidate sample weights. """
@@ -87,11 +87,12 @@ class BasicProblem(ElementwiseProblem):
                 est.fit(X,y,sample_weight=sample_weight)
 
         #if isinstance(self.fomo_estimator.algorithm, (Lexicase, Lexicase_NSGA2)):
-        overall_loss, group_loss, samples_loss, gp_lens = metrics.flex_loss(est, X, y, accuracy_score, **self.metric_kwargs)
-        out['overall_loss'] = overall_loss #loss of all samples to be used in Flex
+        group_loss, gp_lens, y_true, y_pred = metrics.flex_loss(est, X, y, log_loss, **self.metric_kwargs)
         out['group_loss'] = group_loss #loss of each group
-        out['samples_loss'] = samples_loss #loss of each sample 
+        #out['samples_loss'] = samples_loss #loss of each sample 
         out['gp_lens'] = gp_lens #length of each marginal group
+        out['y_true'] = y_true
+        out['y_pred'] = y_pred
 
         f = np.empty(self.n_obj)
         j = 0
@@ -172,11 +173,12 @@ class SurrogateProblem(ElementwiseProblem):
                 est.fit(X,y,sample_weight=sample_weight)
 
         #if isinstance(self.fomo_estimator.algorithm, (Lexicase, Lexicase_NSGA2)):
-        overall_loss, group_loss, samples_loss, gp_lens = metrics.flex_loss(est, X, y, accuracy_score, **self.metric_kwargs)
-        out['overall_loss'] = overall_loss #loss of all samples to be used in Flex
+        group_loss, gp_lens, y_true, y_pred = metrics.flex_loss(est, X, y, log_loss, **self.metric_kwargs)
         out['group_loss'] = group_loss #loss of each group
-        out['samples_loss'] = samples_loss #loss of each sample 
+        #out['samples_loss'] = samples_loss #loss of each sample 
         out['gp_lens'] = gp_lens #length of each marginal group
+        out['y_true'] = y_true
+        out['y_pred'] = y_pred
         
         f = np.empty(self.n_obj)
         j = 0
