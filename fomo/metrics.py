@@ -37,7 +37,7 @@ import pandas as pd
 import logging
 import itertools as it
 from fomo.utils import categorize 
-from sklearn.metrics import mean_squared_error, balanced_accuracy_score, accuracy_score, log_loss
+from sklearn.metrics import mean_squared_error, balanced_accuracy_score, accuracy_score, log_loss, roc_auc_score
 warnings.filterwarnings("ignore", category=UserWarning)
 
 logger = logging.getLogger(__name__)
@@ -285,6 +285,8 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
         if metric == accuracy_score:
             y_pred = y_pred>0.5
             sign=-1
+        if metric == roc_auc_score:
+            sign=-1
         loss_fn = metric
     else:
         raise ValueError(f'metric={metric} must be "FPR", "FNR", or a callable')
@@ -303,7 +305,7 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
         category_loss = loss_fn(
             y_true.loc[idx].values, 
             y_pred.loc[idx].values,
-            labels = [0,1]
+            **({'labels': [0,1]} if loss_fn == log_loss else {})
         )
         
         # deviation = category_loss - base_loss
@@ -328,6 +330,9 @@ def subgroup_FNR_loss(y_true, y_pred, X_protected, grouping = 'intersectional', 
 
 def subgroup_accuracy_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
     return subgroup_loss(y_true, y_pred, X_protected, accuracy_score, grouping, abs_val, gamma)
+
+def subgroup_roc_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
+    return subgroup_loss(y_true, y_pred, X_protected, roc_auc_score, grouping, abs_val, gamma)
 
 def subgroup_log_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
     return subgroup_loss(y_true, y_pred, X_protected, log_loss, grouping, abs_val, gamma)
