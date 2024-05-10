@@ -43,6 +43,7 @@ from fomo.utils import categorize
 from pymoo.core.survival import Survival
 from pymoo.core.selection import Selection
 from pymoo.operators.sampling.rnd import FloatRandomSampling
+from pymoo.operators.sampling.lhs import LatinHypercubeSampling
 from pymoo.operators.survival.rank_and_crowding import RankAndCrowding
 from pymoo.util.display.multi import MultiObjectiveOutput
 from pymoo.termination.default import DefaultMultiObjectiveTermination

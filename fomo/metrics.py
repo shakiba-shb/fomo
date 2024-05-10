@@ -305,7 +305,7 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
         category_loss = loss_fn(
             y_true.loc[idx].values, 
             y_pred.loc[idx].values,
-            **({'labels': [0,1]} if loss_fn == log_loss else {})
+            **({'labels': [0,1]} if loss_fn in [log_loss, roc_auc_score] else {})
         )
         
         # deviation = category_loss - base_loss
@@ -418,10 +418,11 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
         assert X_protected is None, "cannot define both groups and X_protected"
         X_protected = X[groups]
     
-    categories = {}
     #samples_loss = pd.Series(index=X_protected.index, dtype=int)
     gp_lens = []
+    inter_gp_lens = []
     group_loss = []
+    inter_group_loss = []
     sign = 1
 
     y_pred = estimator.predict_proba(X)[:,1]
@@ -452,7 +453,8 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
 
         category_loss = loss_fn(
             y_true.loc[idx].values, 
-            y_pred.loc[idx].values
+            y_pred.loc[idx].values,
+            **({'labels': [0,1]} if loss_fn in [log_loss, roc_auc_score] else {})
         )
         group_loss.append(sign*category_loss)
         gp_lens.append(len(y_true.loc[idx].values)) #length of each category
@@ -462,12 +464,24 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     # singles = gp_lens.count(1)
     # avg_len = sum(gp_lens) / len(gp_lens) if gp_lens else 0
 
+    inter_categories = X_protected.groupby(groups).groups  
+    for c, idx in inter_categories.items():
+
+        inter_category_loss = loss_fn(
+            y_true.loc[idx].values, 
+            y_pred.loc[idx].values,
+            **({'labels': [0,1]} if loss_fn in [log_loss, roc_auc_score] else {})
+            
+        )
+        inter_group_loss.append(sign*inter_category_loss)
+        inter_gp_lens.append(len(y_true.loc[idx].values)) #length of each category
+
     # sample loss
     # for idx in X_protected.index:
     #     #TODO: turn this off if flex with weighted coin flip is not used
     #     samples_loss[idx] = 0 if y_true.loc[idx] != y_pred.loc[idx] else 1
 
-    return group_loss, gp_lens, y_true, y_pred
+    return group_loss, gp_lens, inter_group_loss, inter_gp_lens, y_true, y_pred
 
 
 def mce(estimator, X, y_true, num_bins=10):

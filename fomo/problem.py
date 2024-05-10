@@ -87,12 +87,14 @@ class BasicProblem(ElementwiseProblem):
                 est.fit(X,y,sample_weight=sample_weight)
 
         #if isinstance(self.fomo_estimator.algorithm, (Lexicase, Lexicase_NSGA2)):
-        group_loss, gp_lens, y_true, y_pred = metrics.flex_loss(est, X, y, log_loss, **self.metric_kwargs)
-        out['group_loss'] = group_loss #loss of each group
+        group_loss, gp_lens, inter_group_loss, inter_gp_lens, y_true, y_pred = metrics.flex_loss(est, X, y, log_loss, **self.metric_kwargs)
+        out['group_loss'] = group_loss #loss of each marginal group
         #out['samples_loss'] = samples_loss #loss of each sample 
         out['gp_lens'] = gp_lens #length of each marginal group
         out['y_true'] = y_true
         out['y_pred'] = y_pred
+        out['inter_group_loss'] = inter_group_loss #loss of each intersectional group
+        out['inter_gp_lens'] = inter_gp_lens #length of each intersectional group
 
         f = np.empty(self.n_obj)
         j = 0
@@ -173,10 +175,12 @@ class SurrogateProblem(ElementwiseProblem):
                 est.fit(X,y,sample_weight=sample_weight)
 
         #if isinstance(self.fomo_estimator.algorithm, (Lexicase, Lexicase_NSGA2)):
-        group_loss, gp_lens, y_true, y_pred = metrics.flex_loss(est, X, y, log_loss, **self.metric_kwargs)
-        out['group_loss'] = group_loss #loss of each group
+        group_loss, gp_lens, inter_group_loss, inter_gp_lens, y_true, y_pred = metrics.flex_loss(est, X, y, log_loss, **self.metric_kwargs)
+        out['group_loss'] = group_loss #loss of each marginal group
         #out['samples_loss'] = samples_loss #loss of each sample 
         out['gp_lens'] = gp_lens #length of each marginal group
+        out['inter_group_loss'] = inter_group_loss #loss of each intersectional group
+        out['inter_gp_lens'] = inter_gp_lens #length of each intersectional group
         out['y_true'] = y_true
         out['y_pred'] = y_pred
         
