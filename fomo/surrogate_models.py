@@ -252,6 +252,8 @@ class InterLinear:
     def _one_hot_encode(self, X):
 
         X = self._make_interaction(X)
+        binary_columns = [col for col in X.columns if X[col].isin([0, 1]).all()]
+        categorical_features = [c for c in X.columns if (X[c].nunique() <= 8 and c not in binary_columns)] #Do not one-hot-encode binary columns and columns with more than 8 categories. 
 
         if not hasattr(self, 'ohc'):
             self.ohc = ColumnTransformer(
@@ -262,7 +264,7 @@ class InterLinear:
                             handle_unknown="ignore", 
                             sparse_output=False
                         ),
-                        X.columns,
+                        categorical_features,
                     ),
                 ],
                 verbose_feature_names_out=False,
