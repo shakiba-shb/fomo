@@ -293,6 +293,7 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
 
     #base_loss = loss_fn(y_true, y_pred)
     max_loss = 0.0
+    count = 0
     for c, idx in categories.items():
         # for FPR and FNR, gamma is also conditioned on the outcome probability
         if metric=='FPR' or loss_fn == FPR: 
@@ -302,12 +303,15 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
         else:
             g = len(idx) / len(X_protected)
 
-        category_loss = loss_fn(
-            y_true.loc[idx].values, 
-            y_pred.loc[idx].values,
-            **({'labels': [0,1]} if loss_fn in [log_loss, roc_auc_score] else {})
-        )
-        
+        try:
+            category_loss = loss_fn(
+                y_true.loc[idx].values, 
+                y_pred.loc[idx].values,
+                **({'labels': [0,1]} if loss_fn in [log_loss] else {})
+            )
+        except ValueError:
+            category_loss = 0
+            
         # deviation = category_loss - base_loss
 
         # if abs_val:
@@ -454,7 +458,7 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
         category_loss = loss_fn(
             y_true.loc[idx].values, 
             y_pred.loc[idx].values,
-            **({'labels': [0,1]} if loss_fn in [log_loss, roc_auc_score] else {})
+            **({'labels': [0,1]} if loss_fn in [log_loss] else {})
         )
         group_loss.append(sign*category_loss)
         gp_lens.append(len(y_true.loc[idx].values)) #length of each category
@@ -470,7 +474,7 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
         inter_category_loss = loss_fn(
             y_true.loc[idx].values, 
             y_pred.loc[idx].values,
-            **({'labels': [0,1]} if loss_fn in [log_loss, roc_auc_score] else {})
+            **({'labels': [0,1]} if loss_fn in [log_loss] else {})
             
         )
         inter_group_loss.append(sign*inter_category_loss)

@@ -165,7 +165,7 @@ def get_parent_WeightedCoinFlip(pop, group_loss, overall_loss, gp_lens, epsilon=
             y_pred = pop.get('y_pred')
             indices = np.random.choice(len(y_true[0]), size = int(gp_lens[g]), replace = False)
             for i in range(len(S)):
-                loss.append(log_loss(y_true[i, indices], y_pred[i, indices]))
+                loss.append(log_loss(y_true[i, indices], y_pred[i, indices], labels=[0, 1]))
             # indices = np.random.choice(samples_loss.shape[1], size = int(gp_lens[0, g]), replace = False)
             # loss = -1*np.mean(samples_loss[:, indices], axis=1)
         
