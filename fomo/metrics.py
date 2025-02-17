@@ -37,8 +37,7 @@ import pandas as pd
 import logging
 import itertools as it
 from fomo.utils import categorize 
-from sklearn.metrics import mean_squared_error, balanced_accuracy_score, accuracy_score, log_loss, roc_auc_score
-warnings.filterwarnings("ignore", category=UserWarning)
+from sklearn.metrics import mean_squared_error, log_loss, roc_auc_score
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +98,8 @@ def multicalibration_loss(
     proportional=False,
     alpha=0.01,
     gamma=0.01,
-    rho=0.1
+    rho=0.1,
+    **kwargs
 ):
     """custom scoring function for multicalibration.
        calculate current loss in terms of (proportional) multicalibration
@@ -252,6 +252,7 @@ def FNR(y_true, y_pred):
 
 
 def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectional', abs_val = False, gamma = True):
+
     assert isinstance(X_protected, pd.DataFrame), "X should be a dataframe"
     if not isinstance(y_true, pd.Series):
         y_true = pd.Series(y_true, index=X_protected.index)
@@ -259,7 +260,7 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
         y_true.index = X_protected.index
 
     y_pred = pd.Series(y_pred, index=X_protected.index)
-
+    
     if (grouping == 'intersectional'):
         groups = list(X_protected.columns)
         categories = X_protected.groupby(groups).groups  
@@ -272,28 +273,16 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
                 mask = X_protected[col] == val
                 indices = X_protected[mask].index
                 categories[category_key] = indices
-    # print('#intersectional groups: ', len(categories))
-    # singles = 0
-    # gp_lens = [len(lst) for lst in categories.values()]
-    # singles = gp_lens.count(1)
-    # avg_len = sum(gp_lens) / len(gp_lens) if gp_lens else 0
-    sign = 1
+
     if isinstance(metric,str):
         loss_fn = FPR if metric=='FPR' else FNR
-        sign=+1
     elif callable(metric):
-        if metric == accuracy_score:
-            y_pred = y_pred>0.5
-            sign=-1
-        if metric == roc_auc_score:
-            sign=-1
         loss_fn = metric
     else:
         raise ValueError(f'metric={metric} must be "FPR", "FNR", or a callable')
 
-    #base_loss = loss_fn(y_true, y_pred)
+    base_loss = loss_fn(y_true, y_pred)
     max_loss = 0.0
-    count = 0
     for c, idx in categories.items():
         # for FPR and FNR, gamma is also conditioned on the outcome probability
         if metric=='FPR' or loss_fn == FPR: 
@@ -303,46 +292,36 @@ def subgroup_loss(y_true, y_pred, X_protected, metric, grouping = 'intersectiona
         else:
             g = len(idx) / len(X_protected)
 
-        try:
-            category_loss = loss_fn(
-                y_true.loc[idx].values, 
-                y_pred.loc[idx].values,
-                **({'labels': [0,1]} if loss_fn in [log_loss] else {})
-            )
-        except ValueError:
-            category_loss = 0
+        category_loss = loss_fn(
+            y_true.loc[idx].values, 
+            y_pred.loc[idx].values,
+            **({'labels': [0,1]} if loss_fn in [log_loss] else {})
+        )
             
-        # deviation = category_loss - base_loss
+        deviation = category_loss - base_loss
 
-        # if abs_val:
-        #     deviation = np.abs(deviation)
+        if abs_val:
+            deviation = np.abs(deviation)
         
-        # if gamma:
-        #     deviation *= g
+        if gamma:
+            deviation *= g
 
-        # if deviation > max_loss:
-        #     max_loss = deviation
-        max_loss += category_loss
+        if deviation > max_loss:
+            max_loss = deviation
 
-    return (sign*max_loss)/len(categories)
+    return max_loss
 
-def subgroup_FPR_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
-    return subgroup_loss(y_true, y_pred, X_protected, 'FPR', grouping, abs_val, gamma)
+def subgroup_FPR_loss(y_true, y_pred, X_protected, grouping = 'intersectional'):
+    return subgroup_loss(y_true, y_pred, X_protected, 'FPR', grouping)
 
-def subgroup_FNR_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
-    return subgroup_loss(y_true, y_pred, X_protected, 'FNR', grouping, abs_val, gamma)
+def subgroup_FNR_loss(y_true, y_pred, X_protected, grouping = 'intersectional'):
+    return subgroup_loss(y_true, y_pred, X_protected, 'FNR', grouping)
 
-def subgroup_accuracy_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
-    return subgroup_loss(y_true, y_pred, X_protected, accuracy_score, grouping, abs_val, gamma)
+def subgroup_log_loss(y_true, y_pred, X_protected, grouping = 'intersectional'):
+    return subgroup_loss(y_true, y_pred, X_protected, log_loss, grouping)
 
-def subgroup_roc_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
-    return subgroup_loss(y_true, y_pred, X_protected, roc_auc_score, grouping, abs_val, gamma)
-
-def subgroup_log_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
-    return subgroup_loss(y_true, y_pred, X_protected, log_loss, grouping, abs_val, gamma)
-
-def subgroup_MSE_loss(y_true, y_pred, X_protected, grouping = 'intersectional', abs_val = False, gamma = True):
-    return subgroup_loss(y_true, y_pred, X_protected, mean_squared_error, grouping, abs_val, gamma)
+def subgroup_MSE_loss(y_true, y_pred, X_protected, grouping = 'intersectional'):
+    return subgroup_loss(y_true, y_pred, X_protected, mean_squared_error, grouping)
 
 def subgroup_scorer(
     estimator,
@@ -350,8 +329,6 @@ def subgroup_scorer(
     y_true,
     metric,
     grouping,
-    abs_val,
-    gamma,
     groups=None,
     X_protected=None
 ):
@@ -371,32 +348,37 @@ def subgroup_scorer(
         assert X_protected is None, "cannot define both groups and X_protected"
         X_protected = X[groups]
 
-    return subgroup_loss(y_true, y_pred, X_protected, metric, grouping, abs_val, gamma)
+    return subgroup_loss(y_true, y_pred, X_protected, metric, grouping)
 
 def subgroup_FPR_scorer(estimator, X, y_true, **kwargs):
-    return subgroup_scorer( estimator, X, y_true, 'FPR', **kwargs)
+    return subgroup_scorer(estimator, X, y_true, 'FPR', **kwargs)
 
 def subgroup_FNR_scorer(estimator, X, y_true, **kwargs):
-    return subgroup_scorer( estimator, X, y_true, 'FNR', **kwargs)
-
-def subgroup_accuracy_scorer(estimator, X, y_true, **kwargs):
-    return subgroup_scorer( estimator, X, y_true, accuracy_score, **kwargs)
+    return subgroup_scorer(estimator, X, y_true, 'FNR', **kwargs)
 
 def subgroup_log_loss_scorer(estimator, X, y_true, **kwargs):
-    return subgroup_scorer( estimator, X, y_true, log_loss, **kwargs)
+    return subgroup_scorer(estimator, X, y_true, log_loss, **kwargs)
 
 def subgroup_MSE_scorer(estimator, X, y_true, **kwargs):
-    return subgroup_scorer( estimator, X, y_true, mean_squared_error, **kwargs)
+    return subgroup_scorer(estimator, X, y_true, mean_squared_error, **kwargs)
 
 
 def flex_loss(estimator, X, y_true, metric, **kwargs):
     """
-        returns 
-        ----------
-        fn: overall loss of all samples
-        fng: loss over group for every group in the training data
-        samples_fnr: False negative rate of every sample in the training data
-        gp_lens: length of each protected group
+    Calculate metrics required by lexicase selection. 
+
+        Returns
+        -------
+        group_loss : list
+            Loss over each marginal group in the training data.
+        gp_lens : list
+            Length of each marginal group.
+        inter_group_loss : list
+            Loss over each intersectional group in the training data.
+        inter_gp_lens : list
+            Length of each intersectional group.
+        y_pred : pd.Series
+            Predictions for all samples
         
         Parameters
         ----------
@@ -407,9 +389,8 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
         y_true: array-like, bool 
             True labels.
         metric: string or function
-            The loss function. Could be FPR or FNR.
-        flag: bool
-            flag = 1 means marginal grouping and flag = 0 means intersectional grouping
+            The loss function.
+
     """
     
     groups = kwargs['groups']
@@ -427,7 +408,6 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     inter_gp_lens = []
     group_loss = []
     inter_group_loss = []
-    sign = 1
 
     y_pred = estimator.predict_proba(X)[:,1]
     y_pred = pd.Series(y_pred, index=X_protected.index)
@@ -435,15 +415,13 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
     if isinstance(metric,str):
         loss_fn = FPR if metric=='FPR' else FNR
     elif callable(metric):
-        if metric == accuracy_score:
-            y_pred = y_pred>0.5
-            sign = -1
         loss_fn = metric
     else:
         raise ValueError(f'metric={metric} must be "FPR", "FNR", or a callable')
 
     #TODO: find a way to create categories only once instead of every time flex_loss is called
-    categories = {}
+    # marginal categories
+    categories = {} 
     for col in X_protected.columns:
         unique_values = X_protected[col].unique()
         for val in unique_values:
@@ -453,39 +431,34 @@ def flex_loss(estimator, X, y_true, metric, **kwargs):
             categories[category_key] = indices
 
     # category loss     
-    for c, idx in categories.items():
-
+    for c, idx in categories.items():   
         category_loss = loss_fn(
             y_true.loc[idx].values, 
             y_pred.loc[idx].values,
-            **({'labels': [0,1]} if loss_fn in [log_loss] else {})
+            **({'labels': [0,1]} if loss_fn in [log_loss, roc_auc_score] else {})
         )
-        group_loss.append(sign*category_loss)
+        group_loss.append(category_loss)
         gp_lens.append(len(y_true.loc[idx].values)) #length of each category
 
-    # print('#marginal groups: ', len(categories))
-    # singles = 0
-    # singles = gp_lens.count(1)
-    # avg_len = sum(gp_lens) / len(gp_lens) if gp_lens else 0
-
+    # intersectional categories
     inter_categories = X_protected.groupby(groups).groups  
     for c, idx in inter_categories.items():
 
         inter_category_loss = loss_fn(
             y_true.loc[idx].values, 
             y_pred.loc[idx].values,
-            **({'labels': [0,1]} if loss_fn in [log_loss] else {})
+            **({'labels': [0,1]} if loss_fn in [log_loss, roc_auc_score] else {})
             
         )
-        inter_group_loss.append(sign*inter_category_loss)
+        inter_group_loss.append(inter_category_loss)
         inter_gp_lens.append(len(y_true.loc[idx].values)) #length of each category
-
+    
     # sample loss
     # for idx in X_protected.index:
     #     #TODO: turn this off if flex with weighted coin flip is not used
     #     samples_loss[idx] = 0 if y_true.loc[idx] != y_pred.loc[idx] else 1
 
-    return group_loss, gp_lens, inter_group_loss, inter_gp_lens, y_true, y_pred
+    return group_loss, gp_lens, inter_group_loss, inter_gp_lens, y_pred
 
 
 def mce(estimator, X, y_true, num_bins=10):
