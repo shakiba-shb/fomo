@@ -63,9 +63,11 @@ testdata = [
     (metrics.multicalibration_loss,'marginal'), 
     (metrics.multicalibration_loss,'intersectional'), 
     (metrics.subgroup_FNR_scorer, 'marginal'),
-    (metrics.subgroup_FNR_scorer, 'intersectional')
+    (metrics.subgroup_FNR_scorer, 'intersectional'),
+    (metrics.subgroup_log_loss_scorer, 'marginal'),
+    (metrics.subgroup_log_loss_scorer, 'intersectional'),
            ]
-
+from pymoo.algorithms.moo.nsga2 import NSGA2
 @pytest.mark.parametrize("metric,grouping", testdata)
 def test_training(metric,grouping):
     """Test training"""
@@ -75,7 +77,7 @@ def test_training(metric,grouping):
         verbose=True
     )
 
-    est.fit(Xtrain,ytrain,protected_features=GROUPS, termination=('n_gen',1))
+    est.fit(Xtrain,ytrain,protected_features=GROUPS, grouping=grouping, termination=('n_gen',1))
 
     print('model\tfold\tAUROC\tAUPRC\tMC\tPMC')
     for x,y_true,fold in [(Xtrain, ytrain,'train'), 
@@ -86,8 +88,9 @@ def test_training(metric,grouping):
         score = metric(
             est,
             x, 
-            y_true, 
-            groups=GROUPS
+            y_true,
+            groups=GROUPS,
+            grouping=grouping 
         )
         print(f'Fold:{fold}\t{metric.__name__}:{score}',end='\t')
         for score in [roc_auc_score, average_precision_score]: 
