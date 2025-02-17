@@ -38,12 +38,11 @@ import pandas as pd
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn.utils.multiclass import unique_labels
-from sklearn.metrics import make_scorer, roc_auc_score, r2_score, mean_squared_error, balanced_accuracy_score, accuracy_score
+from sklearn.metrics import make_scorer, roc_auc_score, mean_squared_error
 from sklearn.linear_model import LogisticRegression, SGDRegressor
 from sklearn.base import clone
 from sklearn.pipeline import Pipeline
 import multiprocessing
-from multiprocessing.pool import ThreadPool
 import dill
 
 # pymoo
@@ -122,11 +121,9 @@ class FomoEstimator(BaseEstimator):
 
     def fit(self, 
             X, 
-            y, 
-            grouping = 'intersectional', 
-            abs_val = False, 
-            gamma = True, 
+            y,  
             protected_features=None, 
+            grouping = 'intersectional',
             Xp=None, 
             starting_point=None, 
             **kwargs
@@ -162,9 +159,7 @@ class FomoEstimator(BaseEstimator):
         metric_kwargs = dict(
             groups=protected_features, 
             X_protected=Xp,
-            grouping = grouping, 
-            abs_val = abs_val,
-            gamma = gamma
+            grouping = grouping
         )
         problem_kwargs=dict(fomo_estimator=self, metric_kwargs=metric_kwargs)
         # parallelization
@@ -340,8 +335,7 @@ class FomoEstimator(BaseEstimator):
         """
         check_is_fitted(self, 'is_fitted_')
         I = self.I_
-        #F = self._get_signed_F()
-        F = self.res_.F
+        F = self._get_signed_F()
         axis_labels = self._get_objective_names()
         plot = (
             Scatter()
@@ -452,7 +446,7 @@ class FomoClassifier(FomoEstimator, ClassifierMixin, BaseEstimator):
             picking_strategy
         )
 
-    def fit(self, X, y, grouping = 'intersectional', abs_val = False, gamma = True, protected_features=None, Xp=None, **kwargs):
+    def fit(self, X, y, protected_features=None, grouping ='intersectional', Xp=None, **kwargs):
         """Train the model.
 
         1. Train a population of self.estimator models with random weights. 
@@ -488,7 +482,7 @@ class FomoClassifier(FomoEstimator, ClassifierMixin, BaseEstimator):
 
         self._init_metrics()
 
-        super().fit(X, y, grouping = grouping, abs_val = abs_val, gamma = gamma, protected_features=protected_features, Xp=Xp, **kwargs)
+        super().fit(X, y, protected_features=protected_features, grouping = grouping, Xp=Xp, **kwargs)
 
         # Return the classifier
         return self
@@ -524,9 +518,9 @@ class FomoClassifier(FomoEstimator, ClassifierMixin, BaseEstimator):
         self.accuracy_metrics_ = self.accuracy_metrics
         self.fairness_metrics_ = self.fairness_metrics
         if self.accuracy_metrics is None:
-            self.accuracy_metrics_ = [make_scorer(roc_auc_score, greater_is_better=False, needs_proba=True)]
+            self.accuracy_metrics_ = [make_scorer(roc_auc_score, greater_is_better=False)]
         if self.fairness_metrics is None:
-            self.fairness_metrics_ = [metrics.multicalibration_loss]
+            self.fairness_metrics_ = [metrics.subgroup_FNR_scorer]
 
     def predict_proba_archive(self, X):
         """Return a list of predictions from the archive models. """
