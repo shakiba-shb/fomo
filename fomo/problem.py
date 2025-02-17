@@ -40,17 +40,11 @@ import inspect
 import fomo.metrics as metrics
 from .surrogate_models import MLP, Linear, InterLinear
 from fomo.algorithm import Lexicase, Lexicase_NSGA2
-from sklearn.metrics import balanced_accuracy_score, make_scorer, accuracy_score, log_loss
 
 class BasicProblem(ElementwiseProblem):
     """ The evaluation function for each candidate sample weights. """
 
-    def __init__(
-        self, 
-        fomo_estimator, 
-        metric_kwargs={},
-        **kwargs
-        ):
+    def __init__(self, fomo_estimator, metric_kwargs={},**kwargs):
         self.fomo_estimator=fomo_estimator
         self.metric_kwargs=metric_kwargs
         n_var = len(self.fomo_estimator.X_)
@@ -86,21 +80,20 @@ class BasicProblem(ElementwiseProblem):
             else:
                 est.fit(X,y,sample_weight=sample_weight)
 
-        #if isinstance(self.fomo_estimator.algorithm, (Lexicase, Lexicase_NSGA2)):
-        group_loss, gp_lens, inter_group_loss, inter_gp_lens, y_true, y_pred = metrics.flex_loss(est, X, y, log_loss, **self.metric_kwargs)
-        out['group_loss'] = group_loss #loss of each marginal group
-        #out['samples_loss'] = samples_loss #loss of each sample 
-        out['gp_lens'] = gp_lens #length of each marginal group
-        out['y_true'] = y_true
-        out['y_pred'] = y_pred
-        out['inter_group_loss'] = inter_group_loss #loss of each intersectional group
-        out['inter_gp_lens'] = inter_gp_lens #length of each intersectional group
-
         f = np.empty(self.n_obj)
         j = 0
         for i, metric in enumerate(self.fomo_estimator.accuracy_metrics_):
             f[i] = metric(est, X, y)
             j += 1
+            if isinstance(self.fomo_estimator.algorithm, (Lexicase, Lexicase_NSGA2)):
+            # Add information needed for lexicase selection to out
+                group_loss, gp_lens, inter_group_loss, inter_gp_lens, y_pred = metrics.flex_loss(est, X, y, metric._score_func, **self.metric_kwargs)
+                out['group_loss'] = group_loss 
+                out['gp_lens'] = gp_lens 
+                out['inter_group_loss'] = inter_group_loss 
+                out['inter_gp_lens'] = inter_gp_lens 
+                out['y_pred'] = y_pred 
+                out['y_true'] = y 
         for metric in self.fomo_estimator.fairness_metrics_:
             f[j] = metric(est, X, y, **self.metric_kwargs)
             j += 1
@@ -173,22 +166,22 @@ class SurrogateProblem(ElementwiseProblem):
                 est.fit(X, y, **kwarg)
             else:
                 est.fit(X,y,sample_weight=sample_weight)
-
-        #if isinstance(self.fomo_estimator.algorithm, (Lexicase, Lexicase_NSGA2)):
-        group_loss, gp_lens, inter_group_loss, inter_gp_lens, y_true, y_pred = metrics.flex_loss(est, X, y, log_loss, **self.metric_kwargs)
-        out['group_loss'] = group_loss #loss of each marginal group
-        #out['samples_loss'] = samples_loss #loss of each sample 
-        out['gp_lens'] = gp_lens #length of each marginal group
-        out['inter_group_loss'] = inter_group_loss #loss of each intersectional group
-        out['inter_gp_lens'] = inter_gp_lens #length of each intersectional group
-        out['y_true'] = y_true
-        out['y_pred'] = y_pred
         
         f = np.empty(self.n_obj)
         j = 0
         for i, metric in enumerate(self.fomo_estimator.accuracy_metrics_):
             f[i] = metric(est, X, y)
             j += 1
+            if isinstance(self.fomo_estimator.algorithm, (Lexicase, Lexicase_NSGA2)):
+            # Add information needed for lexicase selection to out
+                group_loss, gp_lens, inter_group_loss, inter_gp_lens, y_pred = metrics.flex_loss(est, X, y, metric._score_func, **self.metric_kwargs)
+                out['group_loss'] = group_loss 
+                out['gp_lens'] = gp_lens 
+                out['inter_group_loss'] = inter_group_loss 
+                out['inter_gp_lens'] = inter_gp_lens 
+                out['y_pred'] = y_pred 
+                out['y_true'] = y 
+
         for metric in self.fomo_estimator.fairness_metrics_:
             f[j] = metric(est, X, y, **self.metric_kwargs)
             j += 1
